@@ -40,6 +40,30 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				'sockets'     => array()
 			);
 
+
+			$config['sockets']['export_media'] = array(
+				'label' => 'Media',
+				'items' => array(
+					'placeholders' => array(
+						'type'  => 'gallery',
+						'label' => 'Placeholder Images',
+						'description' => 'Wha sad as das dasdas dasdasadas as as das'
+					),
+					'ignored_images' => array(
+						'type'  => 'gallery',
+						'label' => 'Ignored Images',
+						'description' => 'Wha sad as das das ddasd  dasdas dasdasadas as as das'
+					),
+
+					'whatsupdoc' => array(
+						'type'  => 'gallery',
+						'label' => 'Ignored Images',
+						'description' => 'Wha sad as das das ddasd asdsadsadas dasdas dasdasadas as as das'
+					)
+				)
+			);
+
+
 			$config['sockets']['export_post_types'] = array(
 				'label' => 'Posts & Post Types',
 				'items' => array()
@@ -49,12 +73,22 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 			foreach ( $post_types as $post_type => $post_type_config ) {
 
-				$config['sockets']['export_post_types']['items']['post_type_' . $post_type . '_start'] = array(
+				if ( 'attachment' === $post_type ) {
+					continue;
+				}
+
+				$post_type_rest = $post_type;
+
+				if ( property_exists( $post_type_config, 'rest_base' ) ) {
+					$post_type_rest = $post_type_config->rest_base;
+				}
+
+				$config['sockets']['export_post_types']['items']['post_type_' . $post_type_rest . '_start'] = array(
 					'type' => 'divider',
 					'html' => $post_type,
 				);
 
-				$config['sockets']['export_post_types']['items']['post_type_' . $post_type] = array(
+				$config['sockets']['export_post_types']['items']['post_type_' . $post_type_rest] = array(
 					'type'         => 'post_select',
 					'label' => $post_type_config->label,
 					'query' => array(
@@ -101,20 +135,51 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				'methods'             => 'GET',
 				'callback'            => array( $this, 'export_data' ),
 			) );
+
+			//The Following registers an api route with multiple parameters.
+			register_rest_route( 'sce/v1', '/media', array(
+				'methods'             => 'GET',
+				'callback'            => array( $this, 'export_media' ),
+			) );
+		}
+
+		function export_media(){
+			if ( empty( $_GET['id'] ) ) {
+				return rest_ensure_response( 'I need an id!' );
+			}
+
+			$id = $_GET['id'];
+
+			$file = get_attached_file( $id );
+
+			$type = pathinfo($file, PATHINFO_EXTENSION);
+
+			$data = file_get_contents($file);
+
+			$base64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+
+			return rest_ensure_response( array(
+				'title' => get_the_title( $id ),
+				'mime_type' => get_post_mime_type($id),
+				'ext' => $type,
+				'data' => $base64
+			) );
 		}
 
 		function export_data(){
-
 			$options = get_option('starter_content_exporter');
 
 			$return = array(
+				'media' => array(
+					'placeholders' => explode(',', $options['placeholders'] ),
+					'ignored' => explode(',', $options['ignored_images'] ),
+				),
 				'post_types' => array(),
 				'taxonomies' => array(),
 				'options' => array()
 			);
 
 			foreach ( $options as $key => $option ) {
-
 				if ( strpos( $key, 'post_type_' ) !== false ) {
 					$return['post_types'][ str_replace( 'post_type_', '', $key ) ] = $option;
 				}
@@ -122,8 +187,9 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				if ( strpos( $key, 'tax_' ) !== false ) {
 					$return['taxonomies'][ str_replace( 'tax_', '', $key ) ] = $option;
 				}
-
 			}
+
+			$options['placeholders'];
 
 			return rest_ensure_response( $return );
 		}
