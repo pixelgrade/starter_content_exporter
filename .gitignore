@@ -11,6 +11,7 @@ wp-content/wp-cache-config.php
 wp-content/plugins/hello.php
 
 /.htaccess
+/.node_modules
 /license.txt
 /readme.html
 /sitemap.xml
