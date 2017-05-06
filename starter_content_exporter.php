@@ -3,7 +3,7 @@
  * Plugin Name:       Starter Content Exporter
  * Plugin URI:        https://andrei-lupu.com/
  * Description:       This is a Socket Framework Plugin Example
- * Version:           0.0.1
+ * Version:           0.0.2
  * Author:            Andrei Lupu
  * Author URI:        https://andrei-lupu.com/
  * License:           GPL-2.0+
@@ -17,6 +17,32 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 	class Starter_Content_Exporter {
 
 		private $ignored_images;
+
+		/**
+		 * @var array A list of meta keys representig all the posible image holders
+		 * For example `_thumbnail_id` holds the featured image, which should be replaced with a placeholder
+		 * Or `product_image_gallery` which holds a list of attachemnts ids separated by comma. Also they should be
+		 * replaced with placeholders
+		 */
+		private $gallery_meta_keys = array(
+			'_thumbnail_id',
+			'main_image',
+			'image_backgrounds',
+			'_hero_background_gallery',
+			'product_image_gallery',
+
+			// theme specific keys .. gosh these should be automatically detected
+			'_border_main_gallery',
+			'_bucket_main_gallery',
+			'_heap_main_gallery',
+			'_lens_main_gallery',
+			'_rosa_main_gallery',
+			'_mies_second_image',
+			'_pile_second_image',
+			'_border_portfolio_gallery',
+			'_lens_portfolio_gallery',
+			'_border_project_gallery',
+		);
 
 		public function __construct() {
 			add_action( 'init', array( $this, 'init_demo_exporter' ), 50 );
@@ -310,9 +336,8 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 			// usually the attahcment_metadata will be regenerated
 			unset( $metas['_wp_attached_file'] );
-//			unset( $metas['_wp_attachment_metadata'] );// are you sure? 
 
-			foreach ( array( '_thumbnail_id', 'main_image', 'pix_gallery', 'image_backgrounds', 'product_image_gallery' ) as $gallery_key ) {
+			foreach ( $this->gallery_meta_keys as $gallery_key ) {
 				if ( isset( $metas[$gallery_key] ) ) {
 					$selected_images = explode(',', $metas[$gallery_key][0]);
 
