@@ -154,11 +154,11 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			register_rest_route( 'sce/v1', '/media', array(
 				'methods'             => 'GET',
 				'callback'            => array( $this, 'rest_export_media' ),
-				'args' => array(
-					'id' => array(
-						'validate_callback' => 'is_numeric'
-					),
-				),
+//				'args' => array(
+//					'id' => array(
+//						'validate_callback' => 'is_numeric'
+//					),
+//				),
 			) );
 
 			//The Following registers an api route with multiple parameters.
@@ -277,6 +277,11 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			preg_match_all( $attachments_regex, $content, $result );
 
 			foreach ( $result as $i => $image_url ) {
+
+				if ( ! is_string( $image_url ) ) {
+					continue;
+				}
+
 				$attach_id = attachment_url_to_postid( $image_url );
 
 				if ( isset( $client_ignored_images[$attach_id] ) ) {
@@ -563,8 +568,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		}
 
 		private function get_client_ignored_images(){
-			if ( isset( $_POST['ignored_images'] ) && is_array( $_POST['ignored_images
-			'] ) ) {
+			if ( isset( $_POST['ignored_images'] ) && is_array( $_POST['ignored_images'] ) ) {
 				return $_POST['ignored_images'];
 			}
 
@@ -581,40 +585,6 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			$this->ignored_images = explode(',', $options['ignored_images'] );
 
 			return $this->ignored_images;
-		}
-
-		/**
-		 * Given an URL we will try to find and return the ID of the attachment, if present
-		 *
-		 * @param string $attachment_url
-		 *
-		 * @return bool|null|string
-		 */
-		private function get_attachment_id_from_url( $attachment_url = '' ) {
-			global $wpdb;
-			$attachment_id = false;
-
-			// If there is no url, bail.
-			if ( '' == $attachment_url ) {
-				return false;
-			}
-
-			// Get the upload directory paths
-			$upload_dir_paths = wp_upload_dir();
-
-			// Make sure the upload path base directory exists in the attachment URL, to verify that we're working with a media library image
-			if ( false !== strpos( $attachment_url, $upload_dir_paths['baseurl'] ) ) {
-				// If this is the URL of an auto-generated thumbnail, get the URL of the original image
-				$attachment_url = preg_replace( '/-\d+x\d+(?=\.(jpg|jpeg|png|gif)$)/i', '', $attachment_url );
-
-				// Remove the upload path base directory from the attachment URL
-				$attachment_url = str_replace( $upload_dir_paths['baseurl'] . '/', '', $attachment_url );
-
-				// Finally, run a custom database query to get the attachment ID from the modified attachment URL
-				$attachment_id = $wpdb->get_var( $wpdb->prepare( "SELECT wposts.ID FROM $wpdb->posts wposts, $wpdb->postmeta wpostmeta WHERE wposts.ID = wpostmeta.post_id AND wpostmeta.meta_key = '_wp_attached_file' AND wpostmeta.meta_value = '%s' AND wposts.post_type = 'attachment'", $attachment_url ) );
-			}
-
-			return $attachment_id;
 		}
 
 		private function get_random_placeholder_id( $original_id ) {
