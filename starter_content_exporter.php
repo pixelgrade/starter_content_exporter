@@ -18,6 +18,8 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 		private $ignored_images;
 
+		private $client_placeholders;
+
 		/**
 		 * @var array A list of meta keys representig all the posible image holders
 		 * For example `_thumbnail_id` holds the featured image, which should be replaced with a placeholder
@@ -266,8 +268,6 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		}
 
 		function prepare_post_content( $content, $post ){
-			$client_placeholders = $this->get_client_placeholders();
-			$client_ignored_images = $this->get_client_ignored_images();
 
 			// search for shortcodes with attachments ids like gallery
 			$upload_dir = wp_get_upload_dir();
@@ -278,23 +278,9 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 			foreach ( $result as $i => $image_url ) {
 
-				if ( ! is_string( $image_url ) ) {
-					continue;
-				}
+				$new_url = $this->get_rotated_placeholder_url( $image_url );
 
-				$attach_id = attachment_url_to_postid( $image_url );
-
-				if ( isset( $client_ignored_images[$attach_id] ) ) {
-					$new_attach = $client_ignored_images[$attach_id]['sizes']['full'];
-					$content = str_replace( $image_url, $new_attach, $content );
-					continue;
-				}
-
-				$new_thumb = array_rand( $client_placeholders );
-
-				$new_attach = $client_placeholders[$new_thumb];
-				$new_attach = $new_attach['sizes']['full'];
-				$content = str_replace( $image_url, $new_attach, $content );
+				$content = str_replace( $image_url, $new_url, $content );
 			}
 
 			if ( has_shortcode( $content, 'gallery' ) ) {
@@ -321,8 +307,8 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			if ( isset( $matches[2] ) && ! empty( $matches[2] ) ) {
 				$replace_ids = array();
 				$matches[2]  = explode( ',', $matches[2] );
-				foreach ( $matches[2] as $key => $match ) {
-					$replace_ids[ $key ] = $this->get_random_placeholder_id( $match );
+				foreach ( $matches[2] as $key => $attach_id ) {
+					$replace_ids[ $key ] = $this->get_rotated_placeholder_id( $attach_id );
 				}
 
 				$replace_string = implode( ',', $replace_ids );
@@ -332,7 +318,6 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		}
 
 		function prepare_post_meta( $metas, $post ){
-			$client_placeholders = $this->get_client_placeholders();
 
 			// useless meta
 			unset( $metas['_edit_lock'] );
@@ -346,8 +331,8 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				if ( isset( $metas[$gallery_key] ) ) {
 					$selected_images = explode(',', $metas[$gallery_key][0]);
 
-					foreach ( $selected_images as $i => $img ) {
-						$selected_images[$i] = $this->get_random_placeholder_id( $img );
+					foreach ( $selected_images as $i => $attach_id ) {
+						$selected_images[$i] = $this->get_rotated_placeholder_id( $attach_id );
 					}
 
 					$metas[$gallery_key] = array( join( ',', $selected_images ) );
@@ -538,39 +523,6 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			return false;
 		}
 
-		private function get_replacers($client_placeholders){
-
-			$replacers = array(
-				'urls' => array(
-
-				),
-				'ids' => array(
-
-				)
-			);
-
-			foreach ( $client_placeholders as $id => $placeholder ) {
-				$replacers['ids'][$id] = $placeholder['id'];
-
-				foreach (  $placeholder['sizes'] as $size_name => $url ) {
-					$src = wp_get_attachment_image_src($id, $size_name);
-					$replacers['urls'][$url] = $src[0];
-				}
-
-				$replacers['ids'][$id] = $placeholder['id'];
-			}
-
-			return $replacers;
-		}
-
-		private function get_client_placeholders(){
-			if ( isset( $_POST['placeholders'] ) && is_array( $_POST['placeholders'] ) ) {
-				return $_POST['placeholders'];
-			}
-
-			return array();
-		}
-
 		private function get_client_ignored_images(){
 			if ( isset( $_POST['ignored_images'] ) && is_array( $_POST['ignored_images'] ) ) {
 				return $_POST['ignored_images'];
@@ -591,7 +543,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			return $this->ignored_images;
 		}
 
-		private function get_random_placeholder_id( $original_id ) {
+		private function get_rotated_placeholder_id( $original_id ) {
 			$client_placeholders = $this->get_client_placeholders();
 			$client_ignored_images = $this->get_client_ignored_images();
 
@@ -599,13 +551,53 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				return $client_ignored_images[$original_id];
 			}
 
-			$new_thumb = array_rand( $client_placeholders );
+			// get the first key
+			reset($client_placeholders);
+			$new_thumb = key($client_placeholders);
 
 			if ( isset ( $client_placeholders[$new_thumb]['id'] ) ) {
 				return $client_placeholders[$new_thumb]['id'];
 			}
 
 			return $new_thumb;
+		}
+
+		private function get_rotated_placeholder_url( $image_url ) {
+			$client_placeholders = $this->get_client_placeholders();
+			$client_ignored_images = $this->get_client_ignored_images();
+			$attach_id = attachment_url_to_postid( $image_url );
+
+			if ( isset( $client_ignored_images[$attach_id] ) ) {
+				return $client_ignored_images[$attach_id]['sizes']['full'];
+			}
+
+			// get the first key
+			reset($client_placeholders);
+			$new_thumb = key($client_placeholders);
+
+			if ( isset ( $client_placeholders[$new_thumb]['sizes'] ) ) {
+				$new_attach = $client_placeholders[$new_thumb];
+				return $new_attach['sizes']['full'];
+			}
+
+			return '';
+		}
+
+		private function get_client_placeholders(){
+			if ( ! isset( $_POST['placeholders'] ) || ! is_array( $_POST['placeholders'] ) ) {
+				return array();
+			}
+
+			if ( empty( $this->client_placeholders ) ) {
+				$this->client_placeholders = $_POST['placeholders'];
+			} else {
+				$keys = array_keys($this->client_placeholders);
+				$val = $this->client_placeholders[$keys[0]];
+				unset($this->client_placeholders[$keys[0]]);
+				$this->client_placeholders[$keys[0]] = $val;
+			}
+
+			return $this->client_placeholders;
 		}
 	}
 }
