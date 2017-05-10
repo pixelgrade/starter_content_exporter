@@ -473,7 +473,11 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				$widget_val = get_option( 'widget_' . $widget['type'] );
 				$widget_val = apply_filters( 'widget_data_export', $widget_val, $widget['type'] );
 				$multiwidget_val = $widget_val['_multiwidget'];
-				$widgets_array[$widget['type']][$widget['type-index']] = $widget_val[$widget['type-index']];
+
+				if ( isset( $widget_val[$widget['type-index']] ) ) {
+					$widgets_array[$widget['type']][$widget['type-index']] = $widget_val[$widget['type-index']];
+				}
+
 				if ( isset( $widgets_array[$widget['type']]['_multiwidget'] ) )
 					unset( $widgets_array[$widget['type']]['_multiwidget'] );
 
