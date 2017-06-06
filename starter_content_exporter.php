@@ -3,7 +3,7 @@
  * Plugin Name:       Starter Content Exporter
  * Plugin URI:        https://andrei-lupu.com/
  * Description:       This is a Socket Framework Plugin Example
- * Version:           0.0.4
+ * Version:           0.0.5
  * Author:            Andrei Lupu
  * Author URI:        https://andrei-lupu.com/
  * License:           GPL-2.0+
@@ -53,7 +53,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 			// internal filters
 //			add_filter( '', array( $this, '' ) );
-			add_filter( 'sce_export_prepare_post_content', array( $this, 'prepare_post_content' ), 10, 2 );
+			add_filter( 'sce_export_prepare_post_content', array( $this, 'parse_content_for_images' ), 10, 2 );
 			add_filter( 'sce_export_prepare_post_meta', array( $this, 'prepare_post_meta' ), 10, 2 );
 		}
 
@@ -267,22 +267,25 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			return rest_ensure_response( $posts );
 		}
 
-		function prepare_post_content( $content, $post ){
+		function parse_content_for_images( $content, $post ){
 
-			// search for shortcodes with attachments ids like gallery
 			$upload_dir = wp_get_upload_dir();
 
-			$attachments_regex = "~" . addslashes( $upload_dir['baseurl'] ) . '.+(?=[\"\ ])' .  "~U";
+			//$attachments_regex = "~" . addslashes( $upload_dir['baseurl'] ) . '.+(?=[\"\ ])' .  "~U";
+
+			$explode = explode( '/wp-content/uploads/', $upload_dir['baseurl'] );
+			$base_url = '/wp-content/uploads/' . $explode[1];
+			$attachments_regex =  '~(?<=src=\").+((' . $base_url . ')|(files\.wordpress\.com)).+(?=[\"\ ])~U';
 
 			preg_match_all( $attachments_regex, $content, $result );
 
-			foreach ( $result as $i => $image_url ) {
-
-				$new_url = $this->get_rotated_placeholder_url( $image_url );
-
-				$content = str_replace( $image_url, $new_url, $content );
+			foreach ( $result[0] as $i => $match ) {
+				$original_image_url = $match;
+				$new_url = $this->get_rotated_placeholder_url( $original_image_url );
+				$content = str_replace( $original_image_url, $new_url, $content );
 			}
 
+			// search for shortcodes with attachments ids like gallery
 			if ( has_shortcode( $content, 'gallery' ) ) {
 				$content = $this->replace_gallery_shortcodes_ids($content);
 			}
@@ -562,10 +565,15 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			return $new_thumb;
 		}
 
-		private function get_rotated_placeholder_url( $image_url ) {
+		/**
+		 * @param $image_url original image
+		 *
+		 * @return string
+		 */
+		private function get_rotated_placeholder_url( $original_image_url ) {
 			$client_placeholders = $this->get_client_placeholders();
 			$client_ignored_images = $this->get_client_ignored_images();
-			$attach_id = attachment_url_to_postid( $image_url );
+			$attach_id = attachment_url_to_postid( $original_image_url );
 
 			if ( isset( $client_ignored_images[$attach_id] ) ) {
 				return $client_ignored_images[$attach_id]['sizes']['full'];
@@ -658,6 +666,18 @@ function my_custom_post_type_rest_support() {
 		$wp_taxonomies['job_listing_category']->show_in_rest = true;
 		$wp_taxonomies['job_listing_category']->rest_base = 'job_listing_categories';
 		$wp_taxonomies['job_listing_category']->rest_controller_class = 'WP_REST_Terms_Controller';
+	}
+
+	if ( isset( $wp_taxonomies['job_listing_tag'] ) ) {
+		$wp_taxonomies['job_listing_tag']->show_in_rest = true;
+		$wp_taxonomies['job_listing_tag']->rest_base = 'job_listing_tag';
+		$wp_taxonomies['job_listing_tag']->rest_controller_class = 'WP_REST_Terms_Controller';
+	}
+
+	if ( isset( $wp_taxonomies['job_listing_region'] ) ) {
+		$wp_taxonomies['job_listing_region']->show_in_rest = true;
+		$wp_taxonomies['job_listing_region']->rest_base = 'job_listing_region';
+		$wp_taxonomies['job_listing_region']->rest_controller_class = 'WP_REST_Terms_Controller';
 	}
 
 	if ( isset( $wp_taxonomies['product_cat'] ) ) {
