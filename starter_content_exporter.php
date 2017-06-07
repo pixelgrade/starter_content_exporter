@@ -2,8 +2,8 @@
 /**
  * Plugin Name:       Starter Content Exporter
  * Plugin URI:        https://andrei-lupu.com/
- * Description:       This is a Socket Framework Plugin Example
- * Version:           0.0.5
+ * Description:       A plugin which exposes exportable data through REST API
+ * Version:           0.0.6
  * Author:            Andrei Lupu
  * Author URI:        https://andrei-lupu.com/
  * License:           GPL-2.0+
@@ -32,7 +32,6 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			'image_backgrounds',
 			'_hero_background_gallery',
 			'product_image_gallery',
-
 			// theme specific keys .. gosh these should be automatically detected
 			'_border_main_gallery',
 			'_bucket_main_gallery',
@@ -44,6 +43,35 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			'_border_portfolio_gallery',
 			'_lens_portfolio_gallery',
 			'_border_project_gallery',
+		);
+
+		/**
+		 * A list of options and theme mods which are supposed to be imported at the start
+		 * For example, some options like "which Jetpack modules should be enalbed" must be imported before we
+		 * even start to import posts or categories.
+		 *
+		 * The remaining theme mods(which aren't ignored) will be imported at the end of the process
+		 *
+		 * @var array
+		 */
+		private $pre_settings = array(
+			"options" => array(
+				"show_on_front",
+				"posts_per_page"
+			),
+			"mods" => array(
+				"pixelgrade_jetpack_default_active_modules"
+			)
+		);
+
+		/**
+		 * A list of options keys which should be ignored from export
+		 * @var array
+		 */
+		private $ignored_theme_mods = array(
+			'pixcare_theme_config',
+			'support',
+			'0'
 		);
 
 		public function __construct() {
@@ -66,7 +94,6 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		}
 
 		function add_socket_config ( $config ) {
-
 			$config = array(
 				'page_title'  => 'Pick Exports',
 				'description' => '',
@@ -185,43 +212,6 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 					),
 				),
 			) );
-		}
-
-		function is_comma_list( $value,$request,$name) {
-			$is_number = false;
-
-			$e = explode(',', $value );
-
-			if ( ! empty( $e ) ) {
-				foreach ($e as $val ) {
-					if ( ! is_numeric( $val ) ) {
-						$is_number = false;
-						break;
-					}
-					$is_number = true;
-				}
-			}
-
-			return $is_number;
-		}
-
-		function is_numeric_array( $value,$request,$name ) {
-
-			if ( ! is_array( $value ) ) {
-				return false;
-			}
-
-			$is_number = false;
-
-			foreach ($value as $val ) {
-				if ( ! is_numeric( $val ) ) {
-					$is_number = false;
-					break;
-				}
-				$is_number = true;
-			}
-
-			return $is_number;
 		}
 
 		function rest_export_posts(){
@@ -400,20 +390,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				),
 				'post_types' => array(),
 				'taxonomies' => array(),
-				'widgets' => $this->get_widgets(),
-				'pre_settings' => array(
-					'options' => array( // specific options
-						'show_on_front' => get_option('show_on_front'),
-						'posts_per_page' => get_option('posts_per_page'),
-					),
-				),
-				'post_settings' => array(
-					'options' => array(
-						'page_on_front' => get_option('page_on_front'),
-						'page_for_posts' => get_option('page_for_posts'),
-					),
-					'mods' => get_theme_mods()
-				)
+				'widgets' => $this->get_widgets()
 			);
 
 			foreach ( $options as $key => $option ) {
@@ -426,7 +403,46 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				}
 			}
 
+			$return['pre_settings'] = $this->get_pre_settings();
+			$return['post_settings'] = $this->get_post_settings();
+
 			return rest_ensure_response( $return );
+		}
+
+		private function get_pre_settings(){
+			$mods = get_theme_mods();
+
+			$return = array(
+				'options' => array(),
+				'mods' => array()
+			);
+
+			foreach ($this->pre_settings['options'] as $key ) {
+				$return['options'][$key] = get_option( $key );
+			}
+
+			foreach ( $this->pre_settings['mods'] as  $key ) {
+				if ( isset( $mods[$key] ) ) {
+					$return['mods'][$key] = $mods[$key];
+					$this->ignored_theme_mods[] = $key;
+				}
+			}
+
+			return $return;
+		}
+
+		private function get_post_settings(){
+			$mods = get_theme_mods();
+
+			$exported_mods = array_diff_key( $mods, array_flip( $this->ignored_theme_mods ) );
+
+			return array(
+				'options' => array(
+					'page_on_front' => get_option('page_on_front'),
+					'page_for_posts' => get_option('page_for_posts'),
+				),
+				'mods' => $exported_mods
+			);
 		}
 
 		/**
@@ -606,6 +622,43 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			}
 
 			return $this->client_placeholders;
+		}
+
+		function is_comma_list( $value,$request,$name) {
+			$is_number = false;
+
+			$e = explode(',', $value );
+
+			if ( ! empty( $e ) ) {
+				foreach ($e as $val ) {
+					if ( ! is_numeric( $val ) ) {
+						$is_number = false;
+						break;
+					}
+					$is_number = true;
+				}
+			}
+
+			return $is_number;
+		}
+
+		function is_numeric_array( $value,$request,$name ) {
+
+			if ( ! is_array( $value ) ) {
+				return false;
+			}
+
+			$is_number = false;
+
+			foreach ($value as $val ) {
+				if ( ! is_numeric( $val ) ) {
+					$is_number = false;
+					break;
+				}
+				$is_number = true;
+			}
+
+			return $is_number;
 		}
 	}
 }
