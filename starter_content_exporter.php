@@ -3,7 +3,7 @@
  * Plugin Name:       Starter Content Exporter
  * Plugin URI:        https://andrei-lupu.com/
  * Description:       A plugin which exposes exportable data through REST API
- * Version:           0.0.6
+ * Version:           0.0.7
  * Author:            Andrei Lupu
  * Author URI:        https://andrei-lupu.com/
  * License:           GPL-2.0+
@@ -340,7 +340,8 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			$options = get_option('starter_content_exporter');
 
 			$query_args = array(
-				'include' => $_GET['include']
+				'include' => $_GET['include'],
+				'hide_empty' => false
 			);
 
 			if ( ! empty( $_GET['taxonomy'] ) ) {
@@ -349,11 +350,9 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 			$terms = get_terms( $query_args );
 
-
 			foreach ( $terms as $key => $term ) {
 				$term->meta = get_term_meta( $term->term_id );
 			}
-
 
 			return rest_ensure_response( $terms );
 		}
