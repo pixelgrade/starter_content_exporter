@@ -83,6 +83,10 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 //			add_filter( '', array( $this, '' ) );
 			add_filter( 'sce_export_prepare_post_content', array( $this, 'parse_content_for_images' ), 10, 2 );
 			add_filter( 'sce_export_prepare_post_meta', array( $this, 'prepare_post_meta' ), 10, 2 );
+
+			// widgets
+			add_filter( 'pixcare_sce_widget_data_export_text', array( $this, 'prepare_text_widgets' ), 10, 2 );
+			add_filter( 'pixcare_sce_widget_data_export_nav_menu', array( $this, 'prepare_menu_widgets' ), 10, 2 );
 		}
 
 		function init_demo_exporter() {
@@ -183,11 +187,6 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			register_rest_route( 'sce/v1', '/media', array(
 				'methods'             => 'GET',
 				'callback'            => array( $this, 'rest_export_media' ),
-//				'args' => array(
-//					'id' => array(
-//						'validate_callback' => 'is_numeric'
-//					),
-//				),
 			) );
 
 			//The Following registers an api route with multiple parameters.
@@ -211,6 +210,11 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 						'required' => true
 					),
 				),
+			) );
+
+			register_rest_route( 'sce/v1', '/widgets', array(
+				'methods'             => 'POST',
+				'callback'            => array( $this, 'rest_export_widgets' )
 			) );
 		}
 
@@ -258,10 +262,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		}
 
 		function parse_content_for_images( $content, $post ){
-
 			$upload_dir = wp_get_upload_dir();
-
-			//$attachments_regex = "~" . addslashes( $upload_dir['baseurl'] ) . '.+(?=[\"\ ])' .  "~U";
 
 			$explode = explode( '/wp-content/uploads/', $upload_dir['baseurl'] );
 			$base_url = '/wp-content/uploads/' . $explode[1];
@@ -380,6 +381,49 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			) );
 		}
 
+		function rest_export_widgets(){
+			$posted_array = $this->get_available_widgets();
+
+			$sidebars_array = get_option( 'sidebars_widgets' );
+			$sidebar_export = array();
+			foreach ( $sidebars_array as $sidebar => $widgets ) {
+				if ( !empty( $widgets ) && is_array( $widgets ) ) {
+					foreach ( $widgets as $sidebar_widget ) {
+						if ( in_array( $sidebar_widget, array_keys( $posted_array ) ) ) {
+							$sidebar_export[$sidebar][] = $sidebar_widget;
+						}
+					}
+				}
+			}
+			$widgets = array( );
+			foreach ( $posted_array as $k => $v ) {
+				$widget = array( );
+				$widget['type'] = trim( substr( $k, 0, strrpos( $k, '-' ) ) );
+				$widget['type-index'] = trim( substr( $k, strrpos( $k, '-' ) + 1 ) );
+				$widget['export_flag'] = ($v == 'on') ? true : false;
+				$widgets[] = $widget;
+			}
+			$widgets_array = array( );
+			foreach ( $widgets as $widget ) {
+				$widget_val = get_option( 'widget_' . $widget['type'] );
+				$widget_val = apply_filters( 'pixcare_sce_widget_data_export_' . $widget['type'], $widget_val, $widget['type'] );
+				$multiwidget_val = $widget_val['_multiwidget'];
+
+				if ( isset( $widget_val[$widget['type-index']] ) ) {
+					$widgets_array[$widget['type']][$widget['type-index']] = $widget_val[$widget['type-index']];
+				}
+
+				if ( isset( $widgets_array[$widget['type']]['_multiwidget'] ) )
+					unset( $widgets_array[$widget['type']]['_multiwidget'] );
+
+				$widgets_array[$widget['type']]['_multiwidget'] = $multiwidget_val;
+			}
+			unset( $widgets_array['export'] );
+			$export_array = array( $sidebar_export, $widgets_array );
+
+			return rest_ensure_response( $export_array );
+		}
+
 		function rest_export_data(){
 			$options = get_option('starter_content_exporter');
 
@@ -445,12 +489,63 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			);
 		}
 
+		function prepare_text_widgets( $widget_data, $type ){
+
+			foreach ( $widget_data as $widget_key => $widget ) {
+				if ( '_multiwidget' === $widget_key || ! isset( $widget_data[ $widget_key ]['text'] ) ) {
+					continue;
+				}
+
+				// start processing the widget content
+				$content = $widget_data[ $widget_key ]['text'];
+
+				$upload_dir = wp_get_upload_dir();
+
+				$explode = explode( '/wp-content/uploads/', $upload_dir['baseurl'] );
+				$base_url = '/wp-content/uploads/' . $explode[1];
+				$attachments_regex =  '~(?<=src=\").+((' . $base_url . ')|(files\.wordpress\.com)).+(?=[\"\ ])~U';
+
+				preg_match_all( $attachments_regex, $content, $result );
+
+				foreach ( $result[0] as $i => $match ) {
+					$original_image_url = $match;
+					$new_url = $this->get_rotated_placeholder_url( $original_image_url );
+					$content = str_replace( $original_image_url, $new_url, $content );
+				}
+
+				// search for shortcodes with attachments ids like gallery
+				if ( has_shortcode( $content, 'gallery' ) ) {
+					$content = $this->replace_gallery_shortcodes_ids($content);
+				}
+
+				$widget_data[ $widget_key ]['text'] = $content;
+				// end processing the widget content
+			}
+
+			return $widget_data;
+		}
+
+		function prepare_menu_widgets( $widget_data, $type ){
+			$starter_content = $this->get_option( 'imported_starter_content' );
+
+			foreach ( $widget_data as $widget_key => $widget ) {
+				if ( '_multiwidget' === $widget_key || ! isset( $widget_data[ $widget_key ]['nav_menu'] ) ) {
+					continue;
+				}
+
+				$id = $widget_data[ $widget_key ]['nav_menu'];
+
+				$widget_data[ $widget_key ]['nav_menu'] = $this->get_new_term_id($id);
+			}
+
+			return $widget_data;
+		}
+
 		/**
 		 * Widget functions inspired from Widget Data - Setting Import/Export Plugin
 		 * by Voce Communications - Kevin Langley, Sean McCafferty, Mark Parolisi
 		 */
 		private function get_widgets() {
-
 			$posted_array = $this->get_available_widgets();
 
 			$sidebars_array = get_option( 'sidebars_widgets' );
@@ -604,9 +699,15 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				return $new_attach['sizes']['full'];
 			}
 
-			return '';
+			return '#';
 		}
 
+		/**
+		 * The client may send us a list of imported placeholders.
+		 * This methods returns them and the form should be a map like: "old_id" => "new_id"
+		 *
+		 * @return array
+		 */
 		private function get_client_placeholders(){
 			if ( ! isset( $_POST['placeholders'] ) || ! is_array( $_POST['placeholders'] ) ) {
 				return array();
@@ -622,6 +723,54 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			}
 
 			return $this->client_placeholders;
+		}
+
+		private function get_client_posts() {
+			if ( ! isset( $_POST['post_types'] ) || ! is_array( $_POST['post_types'] ) ) {
+				return array();
+			}
+
+			$types = (array)$_POST['post_types'];
+
+			foreach ( $types as $key => $posts ) {
+				$types[$key] = array_map( 'intval', $posts );
+			}
+
+			return $types;
+		}
+
+		private function get_client_terms() {
+			if ( ! isset( $_POST['taxonomies'] ) || ! is_array( $_POST['taxonomies'] ) ) {
+				return array();
+			}
+
+			$terms = (array)$_POST['taxonomies'];
+
+			foreach ( $terms as $key => $term ) {
+				$terms[$key] = array_map( 'intval', $term );
+			}
+
+			return $terms;
+		}
+
+		private function get_new_post_id( $id ){
+			$types = $this->get_client_posts();
+
+			if ( isset( $types[$id] ) ) {
+				return $types[$id];
+			}
+
+			return $id;
+		}
+
+		private function get_new_term_id( $id ){
+			$terms = $this->get_client_terms();
+
+			if ( isset( $terms[$id] ) ) {
+				return $terms[$id];
+			}
+
+			return $id;
 		}
 
 		function is_comma_list( $value,$request,$name) {
