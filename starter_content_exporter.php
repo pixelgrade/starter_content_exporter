@@ -3,7 +3,7 @@
  * Plugin Name:       Starter Content Exporter
  * Plugin URI:        https://andrei-lupu.com/
  * Description:       A plugin which exposes exportable data through REST API
- * Version:           0.1.2
+ * Version:           0.1.3
  * Author:            Andrei Lupu
  * Author URI:        https://andrei-lupu.com/
  * License:           GPL-2.0+
