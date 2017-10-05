@@ -3,7 +3,7 @@
  * Plugin Name:       Starter Content Exporter
  * Plugin URI:        https://andrei-lupu.com/
  * Description:       A plugin which exposes exportable data through REST API
- * Version:           0.0.7
+ * Version:           0.1.2
  * Author:            Andrei Lupu
  * Author URI:        https://andrei-lupu.com/
  * License:           GPL-2.0+
@@ -436,13 +436,15 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				'widgets' => $this->get_widgets()
 			);
 
-			foreach ( $options as $key => $option ) {
-				if ( strpos( $key, 'post_type_' ) !== false ) {
-					$return['post_types'][ str_replace( 'post_type_', '', $key ) ] = $option;
-				}
+			if ( ! empty( $options ) ) {
+				foreach ( $options as $key => $option ) {
+					if ( strpos( $key, 'post_type_' ) !== false ) {
+						$return['post_types'][ str_replace( 'post_type_', '', $key ) ] = $option;
+					}
 
-				if ( strpos( $key, 'tax_' ) !== false ) {
-					$return['taxonomies'][ str_replace( 'tax_', '', $key ) ] = $option;
+					if ( strpos( $key, 'tax_' ) !== false ) {
+						$return['taxonomies'][ str_replace( 'tax_', '', $key ) ] = $option;
+					}
 				}
 			}
 
@@ -479,13 +481,23 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 			$exported_mods = array_diff_key( $mods, array_flip( $this->ignored_theme_mods ) );
 
-			return array(
+			$returned_options = array(
 				'options' => array(
 					'page_on_front' => get_option('page_on_front'),
 					'page_for_posts' => get_option('page_for_posts'),
 				),
 				'mods' => $exported_mods
 			);
+
+			$featured_content = get_option( 'featured-content' );
+
+			if ( ! empty( $featured_content ) ) {
+				// @TODO maybe replace this with something imported
+				unset( $featured_content['tag-id'] );
+				$returned_options['options']['featured-content'] = $featured_content;
+			}
+
+			return $returned_options;
 		}
 
 		function prepare_text_widgets( $widget_data, $type ){
@@ -525,8 +537,6 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		}
 
 		function prepare_menu_widgets( $widget_data, $type ){
-			$starter_content = $this->get_option( 'imported_starter_content' );
-
 			foreach ( $widget_data as $widget_key => $widget ) {
 				if ( '_multiwidget' === $widget_key || ! isset( $widget_data[ $widget_key ]['nav_menu'] ) ) {
 					continue;
