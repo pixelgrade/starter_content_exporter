@@ -111,13 +111,13 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				'items' => array(
 					'placeholders' => array(
 						'type'  => 'gallery',
-						'label' => 'Placeholder Images',
-						'description' => 'Wha sad as das dasdas dasdasadas as as das'
+						'label' => 'Placeholders',
+						'description' => 'Pick a set of images which should replace the demo images'
 					),
 					'ignored_images' => array(
 						'type'  => 'gallery',
 						'label' => 'Ignored Images',
-						'description' => 'Wha sad as das das ddasd  dasdas dasdasadas as as das'
+						'description' => 'Pixk a set of images ignored from replacement'
 					),
 				)
 			);
@@ -153,7 +153,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				if ( ! empty( $taxonomy_objects ) ) {
 					foreach ($taxonomy_objects as $tax => $tax_config ) {
 
-						if ( in_array( $tax, array('job_listing_type', 'post_format', 'product_type', 'product_visibility', 'product_shipping_class' ) ) ) {
+						if ( in_array( $tax, array( 'job_listing_type', 'feedback', 'jp_pay_order', 'jp_pay_product', 'post_format', 'product_type', 'product_visibility', 'product_shipping_class' ) ) ) {
 							continue;
 						}
 
