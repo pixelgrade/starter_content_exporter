@@ -73,7 +73,4 @@ Post Import options should hold option keys which are dependent on imported data
 For example, the Custom Logo field requires the attachment id of an actual attachment, but we need to be sure that we 
 already imported that attachment before using it.
 
-
-##### @TODO At this moment there is no UI for selecting which option keys or theme mods should be ignored or selected in Pre or Post import event.
-
 ##### @TODO Also there is no image replacement for options yet
