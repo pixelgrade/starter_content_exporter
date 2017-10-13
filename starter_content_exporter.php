@@ -25,6 +25,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		 * For example `_thumbnail_id` holds the featured image, which should be replaced with a placeholder
 		 * Or `product_image_gallery` which holds a list of attachemnts ids separated by comma. Also they should be
 		 * replaced with placeholders
+		 * @TODO this should turn into an option and allow user to select which meta keys are holding images
 		 */
 		private $gallery_meta_keys = array(
 			'_thumbnail_id',
@@ -172,6 +173,32 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 					'html' => ''//'End of the ' . $post_type,
 				);
 			}
+
+			$config['sockets']['export_options'] = array(
+				'label' => 'Exported Options and Theme Mods',
+				'items' => array(
+					'exported_pre_options' => array(
+						'type'  => 'tags',
+						'label' => 'Before import Options Keys',
+						'description' => 'Select which options keys should be added before importing'
+					),
+					'exported_post_options' => array(
+						'type'  => 'tags',
+						'label' => 'After import Options Keys',
+						'description' => 'Select which options keys should be added after importing'
+					),
+					'exported_pre_theme_mods' => array(
+						'type'  => 'tags',
+						'label' => 'Before import Theme Mods Keys',
+						'description' => 'Select which theme_mod keys should be added before importing'
+					),
+					'ignored_post_theme_mods' => array(
+						'type'  => 'tags',
+						'label' => 'Ignored import Theme Mods Keys',
+						'description' => 'All the theme mods are exported after import, but you can select ignored keys'
+					),
+				)
+			);
 
 			return $config;
 		}
@@ -428,13 +455,21 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 			$return = array(
 				'media' => array(
-					'placeholders' => explode(',', $options['placeholders'] ),
-					'ignored' => explode(',', $options['ignored_images'] ),
+					'placeholders' => array(),
+					'ignored' => array(),
 				),
 				'post_types' => array(),
 				'taxonomies' => array(),
 				'widgets' => $this->get_widgets()
 			);
+
+			if ( ! empty( $options['placeholders'] ) ) {
+				$return['media']['placeholders'] = explode(',', $options['placeholders'] );
+			}
+
+			if ( ! empty( $options['ignored_images'] ) ) {
+				$return['media']['ignored'] = explode(',', $options['ignored_images'] );
+			}
 
 			if ( ! empty( $options ) ) {
 				foreach ( $options as $key => $option ) {
@@ -454,18 +489,39 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			return rest_ensure_response( $return );
 		}
 
+		/**
+		 * Get all the options and theme mods which should be added before the import action
+		 * @return array
+		 */
 		private function get_pre_settings(){
 			$mods = get_theme_mods();
+			$options = get_option('starter_content_exporter');
 
 			$return = array(
 				'options' => array(),
 				'mods' => array()
 			);
 
-			foreach ($this->pre_settings['options'] as $key ) {
-				$return['options'][$key] = get_option( $key );
+			// make the selected options keys exportable
+			if ( ! empty( $options['exported_pre_options'] ) ) {
+				// Legacy, keep pre_settings it untill all the demos get their keys in UI
+				$this->pre_settings['options'] = array_merge( $this->pre_settings['options'], $options['exported_pre_options']);
 			}
 
+			foreach ($this->pre_settings['options'] as $key ) {
+				$option_value = get_option( $key, null );
+
+				// we need to check if the option key really exists and ignore the unexistent
+				if ( $option_value !== null ) {
+					$return['options'][$key] = $option_value;
+				}
+			}
+
+			if ( ! empty( $options['exported_pre_theme_mods'] ) ) {
+				$this->pre_settings['mods'] = array_merge(  $this->pre_settings['mods'], $options['exported_pre_theme_mods'] );
+			}
+
+			// @TODO make this work with values from UI
 			foreach ( $this->pre_settings['mods'] as  $key ) {
 				if ( isset( $mods[$key] ) ) {
 					$return['mods'][$key] = $mods[$key];
@@ -476,18 +532,42 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			return $return;
 		}
 
+		/**
+		 * Get all the options and theme mods which should be added after the import action
+		 * @return array
+		 */
 		private function get_post_settings(){
 			$mods = get_theme_mods();
+			$options = get_option('starter_content_exporter');
 
+			// some theme mods can be imported from the UI.
+			if ( ! empty( $options['ignored_post_theme_mods'] ) ) {
+				$this->ignored_theme_mods = array_merge( $this->ignored_theme_mods, $options['ignored_post_theme_mods'] );
+			}
+
+			// remove the ignored theme mods keys
 			$exported_mods = array_diff_key( $mods, array_flip( $this->ignored_theme_mods ) );
 
 			$returned_options = array(
+				// Legacy, keep it untill all the demos get their keys in UI
 				'options' => array(
 					'page_on_front' => get_option('page_on_front'),
 					'page_for_posts' => get_option('page_for_posts'),
 				),
 				'mods' => $exported_mods
 			);
+
+			// make the selected options keys exportable
+			if ( ! empty( $options['exported_post_options'] ) ) {
+				foreach ( $options['exported_post_options'] as $option ) {
+					$option_value = get_option( $option, null );
+
+					// we need to check if the option key really exists and ignore the unexistent
+					if ( $option_value !== null ) {
+						$returned_options['options'][$option] = $option_value;
+					}
+				}
+			}
 
 			$featured_content = get_option( 'featured-content' );
 
