@@ -3,7 +3,7 @@
  * Plugin Name:       Starter Content Exporter
  * Plugin URI:        https://andrei-lupu.com/
  * Description:       A plugin which exposes exportable data through REST API
- * Version:           0.1.3
+ * Version:           0.1.5
  * Author:            Andrei Lupu
  * Author URI:        https://andrei-lupu.com/
  * License:           GPL-2.0+
@@ -81,7 +81,6 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			add_action( 'rest_api_init', array( $this, 'add_rest_routes_api' ) );
 
 			// internal filters
-//			add_filter( '', array( $this, '' ) );
 			add_filter( 'sce_export_prepare_post_content', array( $this, 'parse_content_for_images' ), 10, 2 );
 			add_filter( 'sce_export_prepare_post_meta', array( $this, 'prepare_post_meta' ), 10, 2 );
 
@@ -154,7 +153,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				if ( ! empty( $taxonomy_objects ) ) {
 					foreach ($taxonomy_objects as $tax => $tax_config ) {
 
-						if ( in_array( $tax, array( 'job_listing_type', 'feedback', 'jp_pay_order', 'jp_pay_product', 'post_format', 'product_type', 'product_visibility', 'product_shipping_class' ) ) ) {
+						if ( in_array( $tax, array( 'feedback', 'jp_pay_order', 'jp_pay_product', 'post_format', 'product_type', 'product_visibility', 'product_shipping_class' ) ) ) {
 							continue;
 						}
 
@@ -902,85 +901,3 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 }
 
 $starter_content_exporter = new Starter_Content_Exporter();
-
-
-/**
- * Add REST API support to an already registered post type.
- */
-function my_custom_post_type_rest_support() {
-	global $wp_post_types, $wp_taxonomies;
-
-	// in case we want to export menus
-	$wp_post_types['nav_menu_item']->show_in_rest = true;
-
-	//be sure to set this to the name of your post type!
-	if( isset( $wp_post_types[ 'nav_menu_item' ] ) ) {
-		$wp_post_types['nav_menu_item']->show_in_rest = true;
-		$wp_post_types['nav_menu_item']->rest_base = 'nav_menu_item';
-		$wp_post_types['nav_menu_item']->rest_controller_class = 'WP_REST_Posts_Controller';
-	}
-
-	//be sure to set this to the name of your post type!
-	if( isset( $wp_post_types[ 'jetpack-portfolio' ] ) ) {
-		$wp_post_types['jetpack-portfolio']->show_in_rest = true;
-		$wp_post_types['jetpack-portfolio']->rest_base = 'jetpack-portfolio';
-		$wp_post_types['jetpack-portfolio']->rest_controller_class = 'WP_REST_Posts_Controller';
-	}
-
-	//be sure to set this to the name of your post type!
-	if( isset( $wp_post_types[ 'jetpack-testimonial' ] ) ) {
-		$wp_post_types['jetpack-testimonial']->show_in_rest = true;
-		$wp_post_types['jetpack-testimonial']->rest_base = 'jetpack-testimonial';
-		$wp_post_types['jetpack-testimonial']->rest_controller_class = 'WP_REST_Posts_Controller';
-	}
-
-	if( isset( $wp_post_types[ 'product' ] ) ) {
-		$wp_post_types['product']->show_in_rest = true;
-		$wp_post_types['product']->rest_base = 'product';
-		$wp_post_types['product']->rest_controller_class = 'WP_REST_Posts_Controller';
-	}
-
-	if ( isset( $wp_post_types['job_listing'] ) ) {
-		$wp_post_types['job_listing']->show_in_rest = true;
-		$wp_post_types['job_listing']->rest_base = 'job_listings';
-		$wp_post_types['job_listing']->rest_controller_class = 'WP_REST_Posts_Controller';
-	}
-
-	// taxonomies
-	if ( isset( $wp_taxonomies['nav_menu'] ) ) {
-		$wp_taxonomies['nav_menu']->show_in_rest = true;
-		$wp_taxonomies['nav_menu']->rest_base = 'nav_menu';
-		$wp_taxonomies['nav_menu']->rest_controller_class = 'WP_REST_Terms_Controller';
-	}
-
-	if ( isset( $wp_taxonomies['job_listing_category'] ) ) {
-		$wp_taxonomies['job_listing_category']->show_in_rest = true;
-		$wp_taxonomies['job_listing_category']->rest_base = 'job_listing_categories';
-		$wp_taxonomies['job_listing_category']->rest_controller_class = 'WP_REST_Terms_Controller';
-	}
-
-	if ( isset( $wp_taxonomies['job_listing_tag'] ) ) {
-		$wp_taxonomies['job_listing_tag']->show_in_rest = true;
-		$wp_taxonomies['job_listing_tag']->rest_base = 'job_listing_tag';
-		$wp_taxonomies['job_listing_tag']->rest_controller_class = 'WP_REST_Terms_Controller';
-	}
-
-	if ( isset( $wp_taxonomies['job_listing_region'] ) ) {
-		$wp_taxonomies['job_listing_region']->show_in_rest = true;
-		$wp_taxonomies['job_listing_region']->rest_base = 'job_listing_region';
-		$wp_taxonomies['job_listing_region']->rest_controller_class = 'WP_REST_Terms_Controller';
-	}
-
-	if ( isset( $wp_taxonomies['product_cat'] ) ) {
-		$wp_taxonomies['product_cat']->show_in_rest = true;
-		$wp_taxonomies['product_cat']->rest_base = 'product_cats';
-		$wp_taxonomies['product_cat']->rest_controller_class = 'WP_REST_Terms_Controller';
-	}
-
-	if ( isset( $wp_taxonomies['product_tag'] ) ) {
-		$wp_taxonomies['product_tag']->show_in_rest = true;
-		$wp_taxonomies['product_tag']->rest_base = 'product_tags';
-		$wp_taxonomies['product_tag']->rest_controller_class = 'WP_REST_Terms_Controller';
-	}
-}
-add_action( 'init', 'my_custom_post_type_rest_support' );
