@@ -3,7 +3,7 @@
  * Plugin Name:       Starter Content Exporter
  * Plugin URI:        https://andrei-lupu.com/
  * Description:       A plugin which exposes exportable data through REST API
- * Version:           0.1.5
+ * Version:           0.1.7
  * Author:            Andrei Lupu
  * Author URI:        https://andrei-lupu.com/
  * License:           GPL-2.0+
@@ -479,6 +479,21 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 					if ( strpos( $key, 'tax_' ) !== false ) {
 						$return['taxonomies'][ str_replace( 'tax_', '', $key ) ] = $option;
 					}
+				}
+
+				/**
+				 * Tricky stuff
+				 * We need to make sure that the navigation items are imported the last
+				 * The metadata of a menu item can contain an object_id which should be mapped, but we can only map existing IDS
+				 *
+				 * So we will move the nav_menu_item post type to at the end of the data array.
+				 */
+				$last_post_type_key = end( $return['post_types'] );
+
+				if ( isset( $return['post_types']['nav_menu_item'] ) && 'nav_menu_item' !== $last_post_type_key ) {
+					$tmp = $return['post_types']['nav_menu_item'];
+					unset( $return['post_types']['nav_menu_item'] );
+					$return['post_types']['nav_menu_item'] = $tmp;
 				}
 			}
 
