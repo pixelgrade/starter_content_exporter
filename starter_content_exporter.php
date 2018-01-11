@@ -3,7 +3,7 @@
  * Plugin Name:       Starter Content Exporter
  * Plugin URI:        https://andrei-lupu.com/
  * Description:       A plugin which exposes exportable data through REST API
- * Version:           0.2.0
+ * Version:           0.2.1
  * Author:            Andrei Lupu
  * Author URI:        https://andrei-lupu.com/
  * License:           GPL-2.0+
@@ -523,7 +523,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			) );
 		}
 
-		protected function parse_content_for_images( $content, $post ){
+		public function parse_content_for_images( $content, $post ){
 			$upload_dir = wp_get_upload_dir();
 
 			$explode = explode( '/wp-content/uploads/', $upload_dir['baseurl'] );
@@ -546,7 +546,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			return $content;
 		}
 
-		protected function replace_gallery_shortcodes_ids( $content ) {
+		public function replace_gallery_shortcodes_ids( $content ) {
 			// pregmatch only the ids attribute
 			$pattern = '((\[gallery.*])?ids=\"(.*)\")';
 
@@ -558,7 +558,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			return $content;
 		}
 
-		protected function replace_gallery_shortcodes_ids_pregmatch_callback( $matches ) {
+		public function replace_gallery_shortcodes_ids_pregmatch_callback( $matches ) {
 			if ( isset( $matches[2] ) && ! empty( $matches[2] ) ) {
 				$replace_ids = array();
 				$matches[2]  = explode( ',', $matches[2] );
@@ -1076,7 +1076,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			return array();
 		}
 
-		private function get_ignored_images(){
+		protected function get_ignored_images(){
 			if ( ! empty( $this->ignored_images ) ) {
 				return $this->ignored_images;
 			}
@@ -1088,7 +1088,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			return $this->ignored_images;
 		}
 
-		private function get_rotated_placeholder_id( $original_id ) {
+		protected function get_rotated_placeholder_id( $original_id ) {
 			$client_placeholders = $this->get_client_placeholders();
 			$client_ignored_images = $this->get_client_ignored_images();
 
@@ -1112,7 +1112,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		 *
 		 * @return string
 		 */
-		private function get_rotated_placeholder_url( $original_image_url ) {
+		protected function get_rotated_placeholder_url( $original_image_url ) {
 			$client_placeholders = $this->get_client_placeholders();
 			$client_ignored_images = $this->get_client_ignored_images();
 			$attach_id = attachment_url_to_postid( $original_image_url );
