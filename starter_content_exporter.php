@@ -3,7 +3,7 @@
  * Plugin Name:       Starter Content Exporter
  * Plugin URI:        https://andrei-lupu.com/
  * Description:       A plugin which exposes exportable data through REST API
- * Version:           0.1.8
+ * Version:           0.2.0
  * Author:            Andrei Lupu
  * Author URI:        https://andrei-lupu.com/
  * License:           GPL-2.0+
@@ -78,7 +78,11 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		public function __construct() {
 			add_action( 'init', array( $this, 'init_demo_exporter' ), 100050 );
 			add_filter( 'socket_config_for_starter_content_exporter', array( $this, 'add_socket_config' ) );
-			add_action( 'rest_api_init', array( $this, 'add_rest_routes_api' ) );
+
+			add_action( 'rest_api_init', array( $this, 'add_rest_routes_api_v1' ) );
+
+			// The new standard following endpoints
+			add_action( 'rest_api_init', array( $this, 'add_rest_routes_api_v2' ) );
 
 			// internal filters
 			add_filter( 'sce_export_prepare_post_content', array( $this, 'parse_content_for_images' ), 10, 2 );
@@ -97,6 +101,13 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			) );
 		}
 
+		/**
+		 * This is the management interface config via the Socket options framework
+		 *
+		 * @param $config
+		 *
+		 * @return array
+		 */
 		function add_socket_config ( $config ) {
 			$config = array(
 				'page_title'  => 'Pick Exports',
@@ -202,7 +213,10 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			return $config;
 		}
 
-		function add_rest_routes_api() {
+		/**
+		 * @todo This should be deprecated some time in the future
+		 */
+		function add_rest_routes_api_v1() {
 			//The Following registers an api route with multiple parameters.
 			register_rest_route( 'sce/v1', '/data', array(
 				'methods'             => 'GET',
@@ -243,11 +257,57 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		}
 
 		/**
+		 * REST API Endpoints that follow our common standard of response:
+		 * - code
+		 * - message
+		 * - data
+		 */
+		function add_rest_routes_api_v2() {
+			//The Following registers an api route with multiple parameters.
+			register_rest_route( 'sce/v2', '/data', array(
+				'methods'             => 'GET',
+				'callback'            => array( $this, 'rest_export_data_v2' ),
+			) );
+
+			//The Following registers an api route with multiple parameters.
+			register_rest_route( 'sce/v2', '/media', array(
+				'methods'             => 'GET',
+				'callback'            => array( $this, 'rest_export_media_v2' ),
+			) );
+
+			//The Following registers an api route with multiple parameters.
+			register_rest_route( 'sce/v2', '/posts', array(
+				'methods'             => 'GET',
+				'callback'            => array( $this, 'rest_export_posts_v2' ),
+				'args' => array(
+					'include' => array(
+						'required' => true
+					),
+				),
+			) );
+
+			register_rest_route( 'sce/v2', '/terms', array(
+				'methods'             => 'GET',
+				'callback'            => array( $this, 'rest_export_terms_v2' ),
+				'args' => array(
+					'include' => array(
+						'required' => true
+					),
+				),
+			) );
+
+			register_rest_route( 'sce/v2', '/widgets', array(
+				'methods'             => 'GET',
+				'callback'            => array( $this, 'rest_export_widgets_v2' )
+			) );
+		}
+
+		/**
 		 * @param WP_REST_Request $request
 		 *
 		 * @return WP_REST_Response
 		 */
-		function rest_export_posts( $request ){
+		function rest_export_posts( $request ) {
 			$options = get_option('starter_content_exporter');
 
 			$params = $request->get_params();
@@ -290,6 +350,62 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			}
 
 			return rest_ensure_response( $posts );
+		}
+
+		/**
+		 * @param WP_REST_Request $request
+		 *
+		 * @return WP_REST_Response
+		 */
+		function rest_export_posts_v2( $request ){
+			$options = get_option('starter_content_exporter');
+
+			$params = $request->get_params();
+
+			$query_args = array(
+				'post__in' => $params['include'],
+				'posts_per_page' => 100,
+			);
+
+			if ( ! empty( $params['post_type'] ) ) {
+				$query_args['post_type'] = $params['post_type'];
+			}
+
+			$posts = get_posts( $query_args );
+
+			foreach ( $posts as $key => &$post ) {
+				$post->meta = get_post_meta( $post->ID );
+				$post->meta = apply_filters( 'sce_export_prepare_post_meta', $post->meta, $post );
+				$post->post_content = apply_filters( 'sce_export_prepare_post_content', $post->post_content, $post );
+
+				$post->taxonomies = array();
+
+				foreach ( array_values( get_post_taxonomies( $post ) ) as $taxonomy ) {
+
+					$fields = 'names';
+					if ( is_taxonomy_hierarchical( $taxonomy ) ) {
+						$fields = 'ids';
+					}
+
+					$current_tax = wp_get_object_terms($post->ID, $taxonomy, array(
+						'fields' => $fields
+					));
+
+					if ( ! is_wp_error($current_tax) && ! empty( $current_tax ) ) {
+						$post->taxonomies[$taxonomy] = $current_tax;
+					} else {
+						unset( $post->taxonomies[$taxonomy] );
+					}
+				}
+			}
+
+			return rest_ensure_response( array(
+				'code'    => 'success',
+				'message' => '',
+				'data'    => array(
+					'posts' => $posts,
+				),
+			) );
 		}
 
 		function parse_content_for_images( $content, $post ){
@@ -402,11 +518,52 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		 *
 		 * @return WP_REST_Response
 		 */
+		function rest_export_terms_v2( $request ) {
+			$options = get_option( 'starter_content_exporter' );
+
+			$params = $request->get_params();
+
+			$query_args = array(
+				'include'    => $params['include'],
+				'hide_empty' => false,
+			);
+
+			if ( ! empty( $params['taxonomy'] ) ) {
+				$query_args['taxonomy'] = $params['taxonomy'];
+			}
+
+			$terms = get_terms( $query_args );
+			if ( is_wp_error( $terms ) ) {
+				return rest_ensure_response( $terms );
+			}
+
+			foreach ( $terms as $key => $term ) {
+				$term->meta = get_term_meta( $term->term_id );
+			}
+
+			return rest_ensure_response( array(
+				'code'    => 'success',
+				'message' => '',
+				'data'    => array(
+					'terms' => $terms,
+				),
+			) );
+		}
+
+		/**
+		 * @param WP_REST_Request $request
+		 *
+		 * @return WP_REST_Response
+		 */
 		function rest_export_media( $request ) {
 			$params = $request->get_params();
 
 			if ( empty( $params['id'] ) ) {
-				return rest_ensure_response( 'I need an id!' );
+				return rest_ensure_response( array(
+					'code'    => 'missing_id',
+					'message' => 'You need to provide an attachment id.',
+					'data'    => array(),
+				) );
 			}
 
 			$id = $params['id'];
@@ -470,6 +627,95 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			return rest_ensure_response( $export_array );
 		}
 
+		/**
+		 * @param WP_REST_Request $request
+		 *
+		 * @return WP_REST_Response
+		 */
+		function rest_export_media_v2( $request ) {
+			$params = $request->get_params();
+
+			if ( empty( $params['id'] ) ) {
+				return rest_ensure_response( array(
+					'code'    => 'missing_id',
+					'message' => 'You need to provide an attachment id.',
+					'data'    => array(),
+				) );
+			}
+
+			$id = $params['id'];
+
+			$file = get_attached_file( $id );
+
+			$type = pathinfo( $file, PATHINFO_EXTENSION );
+
+			$data = file_get_contents( $file );
+
+			$base64 = 'data:image/' . $type . ';base64,' . base64_encode( $data );
+
+			return rest_ensure_response( array(
+				'code'    => 'success',
+				'message' => '',
+				'data'    => array(
+					'media' => array(
+						'title'     => get_the_title( $id ),
+						'mime_type' => get_post_mime_type( $id ),
+						'ext'       => $type,
+						'data'      => $base64,
+					),
+				),
+			) );
+		}
+
+		function rest_export_widgets_v2(){
+			$posted_array = $this->get_available_widgets();
+
+			$sidebars_array = get_option( 'sidebars_widgets' );
+			$sidebar_export = array();
+			foreach ( $sidebars_array as $sidebar => $widgets ) {
+				if ( !empty( $widgets ) && is_array( $widgets ) ) {
+					foreach ( $widgets as $sidebar_widget ) {
+						if ( in_array( $sidebar_widget, array_keys( $posted_array ) ) ) {
+							$sidebar_export[$sidebar][] = $sidebar_widget;
+						}
+					}
+				}
+			}
+			$widgets = array( );
+			foreach ( $posted_array as $k => $v ) {
+				$widget = array( );
+				$widget['type'] = trim( substr( $k, 0, strrpos( $k, '-' ) ) );
+				$widget['type-index'] = trim( substr( $k, strrpos( $k, '-' ) + 1 ) );
+				$widget['export_flag'] = ($v == 'on') ? true : false;
+				$widgets[] = $widget;
+			}
+			$widgets_array = array( );
+			foreach ( $widgets as $widget ) {
+				$widget_val = get_option( 'widget_' . $widget['type'] );
+				$widget_val = apply_filters( 'pixcare_sce_widget_data_export_' . $widget['type'], $widget_val, $widget['type'] );
+				$multiwidget_val = $widget_val['_multiwidget'];
+
+				if ( isset( $widget_val[$widget['type-index']] ) ) {
+					$widgets_array[$widget['type']][$widget['type-index']] = $widget_val[$widget['type-index']];
+				}
+
+				if ( isset( $widgets_array[$widget['type']]['_multiwidget'] ) )
+					unset( $widgets_array[$widget['type']]['_multiwidget'] );
+
+				$widgets_array[$widget['type']]['_multiwidget'] = $multiwidget_val;
+			}
+			unset( $widgets_array['export'] );
+			$export_array = array( $sidebar_export, $widgets_array );
+
+			return rest_ensure_response( array(
+				'code'    => 'success',
+				'message' => '',
+				'data'    => array(
+					'widgets' => $export_array,
+				),
+			) );
+		}
+
 		function rest_export_data(){
 			$options = get_option('starter_content_exporter');
 
@@ -522,6 +768,64 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			$return['post_settings'] = $this->get_post_settings();
 
 			return rest_ensure_response( $return );
+		}
+
+		function rest_export_data_v2(){
+			$options = get_option('starter_content_exporter');
+
+			$data = array(
+				'media' => array(
+					'placeholders' => array(),
+					'ignored' => array(),
+				),
+				'post_types' => array(),
+				'taxonomies' => array(),
+				'widgets' => $this->get_widgets()
+			);
+
+			if ( ! empty( $options['placeholders'] ) ) {
+				$data['media']['placeholders'] = explode(',', $options['placeholders'] );
+			}
+
+			if ( ! empty( $options['ignored_images'] ) ) {
+				$data['media']['ignored'] = explode(',', $options['ignored_images'] );
+			}
+
+			if ( ! empty( $options ) ) {
+				foreach ( $options as $key => $option ) {
+					if ( strpos( $key, 'post_type_' ) !== false ) {
+						$data['post_types'][ str_replace( 'post_type_', '', $key ) ] = $option;
+					}
+
+					if ( strpos( $key, 'tax_' ) !== false ) {
+						$data['taxonomies'][ str_replace( 'tax_', '', $key ) ] = $option;
+					}
+				}
+
+				/**
+				 * Tricky stuff
+				 * We need to make sure that the navigation items are imported the last
+				 * The metadata of a menu item can contain an object_id which should be mapped, but we can only map existing IDS
+				 *
+				 * So we will move the nav_menu_item post type to at the end of the data array.
+				 */
+				$last_post_type_key = end( $data['post_types'] );
+
+				if ( isset( $data['post_types']['nav_menu_item'] ) && 'nav_menu_item' !== $last_post_type_key ) {
+					$tmp = $data['post_types']['nav_menu_item'];
+					unset( $data['post_types']['nav_menu_item'] );
+					$data['post_types']['nav_menu_item'] = $tmp;
+				}
+			}
+
+			$data['pre_settings'] = $this->get_pre_settings();
+			$data['post_settings'] = $this->get_post_settings();
+
+			return rest_ensure_response( array(
+				'code'    => 'success',
+				'message' => '',
+				'data'    => $data,
+			) );
 		}
 
 		/**
