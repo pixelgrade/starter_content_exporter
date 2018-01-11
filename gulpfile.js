@@ -4,12 +4,13 @@ var plugin = 'starter_content_exporter',
 
 	gulp 		= require('gulp'),
 	exec 		= require('gulp-exec'),
-	replace 	= require('gulp-replace'),
 	concat 		= require('gulp-concat'),
 	notify 		= require('gulp-notify'),
 	chmod 		= require('gulp-chmod'),
 	fs          = require('fs'),
 	del         = require('del'),
+	rsync 		= require('gulp-rsync'),
+	replace 	= require('gulp-replace'),
 	rename 		= require('gulp-rename');
 
 require('es6-promise').polyfill();
@@ -18,15 +19,6 @@ var options = {
 	silent: true,
 	continueOnError: true // default: false
 };
-
-/**
- * Create a zip archive out of the cleaned folder and delete the folder
- */
-gulp.task( 'zip', ['build'], function() {
-	return gulp.src( './' )
-		.pipe( exec( 'cd ./../; rm -rf starter_content_exporter.zip; cd ./build/; zip -r -X ./../starter_content_exporter.zip ./starter_content_exporter; cd ./../; rm -rf build' ) );
-
-} );
 
 /**
  * Copy theme folder outside in a build folder, recreate styles before that
@@ -42,7 +34,7 @@ gulp.task( 'copy-folder', function() {
 gulp.task( 'build', ['copy-folder'], function() {
 
 	// files that should not be present in build zip
-	files_to_remove = [
+	var files_to_remove = [
 		'node_modules',
 		'tests',
 		'.travis.yml',
@@ -74,4 +66,34 @@ gulp.task( 'build', ['copy-folder'], function() {
 	} );
 
 	del.sync( files_to_remove, { force: true } );
+} );
+
+/**
+ * Create a zip archive out of the cleaned folder and delete the folder
+ */
+gulp.task( 'zip', ['build'], function() {
+	var versionString = '';
+	// get plugin version from the main plugin file
+	var contents = fs.readFileSync("./" + plugin + ".php", "utf8");
+
+	// split it by lines
+	var lines = contents.split(/[\r\n]/);
+
+	function checkIfVersionLine(value, index, ar) {
+		var myRegEx = /^[\s\*]*[Vv]ersion:/;
+		if (myRegEx.test(value)) {
+			return true;
+		}
+		return false;
+	}
+
+	// apply the filter
+	var versionLine = lines.filter(checkIfVersionLine);
+
+	versionString = versionLine[0].replace(/^[\s\*]*[Vv]ersion:/, '').trim();
+	versionString = '-' + versionString.replace(/\./g, '-');
+
+	return gulp.src('./')
+		.pipe(exec('cd ./../; rm -rf ' + plugin[0].toUpperCase() + plugin.slice(1) + '*.zip; cd ./build/; zip -r -X ./../' + plugin[0].toUpperCase() + plugin.slice(1) + versionString + '.zip ./; cd ./../; rm -rf build'));
+
 } );
