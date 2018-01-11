@@ -221,7 +221,6 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				'callback'            => array( $this, 'rest_export_posts' ),
 				'args' => array(
 					'include' => array(
-						'validate_callback' => array( $this, 'is_comma_list'),
 						'required' => true
 					),
 				),
@@ -232,7 +231,6 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				'callback'            => array( $this, 'rest_export_terms' ),
 				'args' => array(
 					'include' => array(
-						'validate_callback' => array( $this, 'is_comma_list'),
 						'required' => true
 					),
 				),
@@ -244,16 +242,23 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			) );
 		}
 
-		function rest_export_posts(){
+		/**
+		 * @param WP_REST_Request $request
+		 *
+		 * @return WP_REST_Response
+		 */
+		function rest_export_posts( $request ){
 			$options = get_option('starter_content_exporter');
 
+			$params = $request->get_params();
+
 			$query_args = array(
-				'include' => $_POST['include'],
-				'posts_per_page' => 100
+				'post__in' => $params['include'],
+				'posts_per_page' => 100,
 			);
 
-			if ( ! empty( $_POST['post_type'] ) ) {
-				$query_args['post_type'] = $_POST['post_type'];
+			if ( ! empty( $params['post_type'] ) ) {
+				$query_args['post_type'] = $params['post_type'];
 			}
 
 			$posts = get_posts( $query_args );
@@ -311,7 +316,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		}
 
 		function replace_gallery_shortcodes_ids( $content ) {
-			// pregmatch only ids attribute
+			// pregmatch only the ids attribute
 			$pattern = '((\[gallery.*])?ids=\"(.*)\")';
 
 			$content = preg_replace_callback( $pattern, array(
@@ -323,7 +328,6 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		}
 
 		function replace_gallery_shortcodes_ids_pregmatch_callback( $matches ) {
-
 			if ( isset( $matches[2] ) && ! empty( $matches[2] ) ) {
 				$replace_ids = array();
 				$matches[2]  = explode( ',', $matches[2] );
@@ -335,6 +339,9 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 				return ' ids="' . $replace_string . '"';
 			}
+
+			// Do not replace anything if we have reached so far
+			return $matches[0];
 		}
 
 		function prepare_post_meta( $metas, $post ){
@@ -362,16 +369,23 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			return $metas;
 		}
 
-		function rest_export_terms(){
-			$options = get_option('starter_content_exporter');
+		/**
+		 * @param WP_REST_Request $request
+		 *
+		 * @return WP_REST_Response
+		 */
+		function rest_export_terms( $request ) {
+			$options = get_option( 'starter_content_exporter' );
+
+			$params = $request->get_params();
 
 			$query_args = array(
-				'include' => $_GET['include'],
-				'hide_empty' => false
+				'include'    => $params['include'],
+				'hide_empty' => false,
 			);
 
-			if ( ! empty( $_GET['taxonomy'] ) ) {
-				$query_args['taxonomy'] = $_GET['taxonomy'];
+			if ( ! empty( $params['taxonomy'] ) ) {
+				$query_args['taxonomy'] = $params['taxonomy'];
 			}
 
 			$terms = get_terms( $query_args );
@@ -383,26 +397,33 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			return rest_ensure_response( $terms );
 		}
 
-		function rest_export_media(){
-			if ( empty( $_GET['id'] ) ) {
+		/**
+		 * @param WP_REST_Request $request
+		 *
+		 * @return WP_REST_Response
+		 */
+		function rest_export_media( $request ) {
+			$params = $request->get_params();
+
+			if ( empty( $params['id'] ) ) {
 				return rest_ensure_response( 'I need an id!' );
 			}
 
-			$id = $_GET['id'];
+			$id = $params['id'];
 
 			$file = get_attached_file( $id );
 
-			$type = pathinfo($file, PATHINFO_EXTENSION);
+			$type = pathinfo( $file, PATHINFO_EXTENSION );
 
-			$data = file_get_contents($file);
+			$data = file_get_contents( $file );
 
-			$base64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+			$base64 = 'data:image/' . $type . ';base64,' . base64_encode( $data );
 
 			return rest_ensure_response( array(
-				'title' => get_the_title( $id ),
-				'mime_type' => get_post_mime_type($id),
-				'ext' => $type,
-				'data' => $base64
+				'title'     => get_the_title( $id ),
+				'mime_type' => get_post_mime_type( $id ),
+				'ext'       => $type,
+				'data'      => $base64,
 			) );
 		}
 
@@ -874,43 +895,6 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			}
 
 			return $id;
-		}
-
-		function is_comma_list( $value, $request, $name ) {
-			$is_number = false;
-
-			$e = explode(',', $value );
-
-			if ( ! empty( $e ) ) {
-				foreach ($e as $val ) {
-					if ( ! is_numeric( $val ) ) {
-						$is_number = false;
-						break;
-					}
-					$is_number = true;
-				}
-			}
-
-			return $is_number;
-		}
-
-		function is_numeric_array( $value, $request, $name ) {
-
-			if ( ! is_array( $value ) ) {
-				return false;
-			}
-
-			$is_number = false;
-
-			foreach ( $value as $val ) {
-				if ( ! is_numeric( $val ) ) {
-					$is_number = false;
-					break;
-				}
-				$is_number = true;
-			}
-
-			return $is_number;
 		}
 	}
 }
