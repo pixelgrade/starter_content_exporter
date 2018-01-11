@@ -93,7 +93,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			add_filter( 'pixcare_sce_widget_data_export_nav_menu', array( $this, 'prepare_menu_widgets' ), 10, 2 );
 		}
 
-		function init_demo_exporter() {
+		public function init_demo_exporter() {
 			require_once( plugin_dir_path( __FILE__ ) . 'socket/loader.php' );
 			$socket = new WP_Socket( array(
 				'plugin'   => 'starter_content_exporter',
@@ -108,7 +108,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		 *
 		 * @return array
 		 */
-		function add_socket_config ( $config ) {
+		public function add_socket_config ( $config ) {
 			$config = array(
 				'page_title'  => 'Pick Exports',
 				'description' => '',
@@ -216,22 +216,22 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		/**
 		 * @todo This should be deprecated some time in the future
 		 */
-		function add_rest_routes_api_v1() {
+		public function add_rest_routes_api_v1() {
 			//The Following registers an api route with multiple parameters.
 			register_rest_route( 'sce/v1', '/data', array(
-				'methods'             => 'GET',
+				'methods'             =>  WP_REST_Server::READABLE,
 				'callback'            => array( $this, 'rest_export_data' ),
 			) );
 
 			//The Following registers an api route with multiple parameters.
 			register_rest_route( 'sce/v1', '/media', array(
-				'methods'             => 'GET',
+				'methods'             =>  WP_REST_Server::READABLE,
 				'callback'            => array( $this, 'rest_export_media' ),
 			) );
 
 			//The Following registers an api route with multiple parameters.
 			register_rest_route( 'sce/v1', '/posts', array(
-				'methods'             => 'POST',
+				'methods'             => WP_REST_Server::CREATABLE,
 				'callback'            => array( $this, 'rest_export_posts' ),
 				'args' => array(
 					'include' => array(
@@ -241,7 +241,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			) );
 
 			register_rest_route( 'sce/v1', '/terms', array(
-				'methods'             => 'GET',
+				'methods'             =>  WP_REST_Server::READABLE,
 				'callback'            => array( $this, 'rest_export_terms' ),
 				'args' => array(
 					'include' => array(
@@ -251,7 +251,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			) );
 
 			register_rest_route( 'sce/v1', '/widgets', array(
-				'methods'             => 'POST',
+				'methods'             =>  WP_REST_Server::CREATABLE,
 				'callback'            => array( $this, 'rest_export_widgets' )
 			) );
 		}
@@ -262,461 +262,47 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		 * - message
 		 * - data
 		 */
-		function add_rest_routes_api_v2() {
+		public function add_rest_routes_api_v2() {
 			//The Following registers an api route with multiple parameters.
 			register_rest_route( 'sce/v2', '/data', array(
-				'methods'             => 'GET',
+				'methods'             =>  WP_REST_Server::READABLE,
 				'callback'            => array( $this, 'rest_export_data_v2' ),
 			) );
 
 			//The Following registers an api route with multiple parameters.
 			register_rest_route( 'sce/v2', '/media', array(
-				'methods'             => 'GET',
+				'methods'             =>  WP_REST_Server::READABLE,
 				'callback'            => array( $this, 'rest_export_media_v2' ),
 			) );
 
 			//The Following registers an api route with multiple parameters.
 			register_rest_route( 'sce/v2', '/posts', array(
-				'methods'             => 'GET',
+				'methods'             =>  WP_REST_Server::CREATABLE,
 				'callback'            => array( $this, 'rest_export_posts_v2' ),
 				'args' => array(
 					'include' => array(
-						'required' => true
+						'required' => true,
 					),
 				),
 			) );
 
 			register_rest_route( 'sce/v2', '/terms', array(
-				'methods'             => 'GET',
+				'methods'             =>  WP_REST_Server::CREATABLE,
 				'callback'            => array( $this, 'rest_export_terms_v2' ),
 				'args' => array(
 					'include' => array(
-						'required' => true
+						'required' => true,
 					),
 				),
 			) );
 
 			register_rest_route( 'sce/v2', '/widgets', array(
-				'methods'             => 'GET',
+				'methods'             =>  WP_REST_Server::CREATABLE,
 				'callback'            => array( $this, 'rest_export_widgets_v2' )
 			) );
 		}
 
-		/**
-		 * @param WP_REST_Request $request
-		 *
-		 * @return WP_REST_Response
-		 */
-		function rest_export_posts( $request ) {
-			$options = get_option('starter_content_exporter');
-
-			$params = $request->get_params();
-
-			$query_args = array(
-				'post__in' => $params['include'],
-				'posts_per_page' => 100,
-			);
-
-			if ( ! empty( $params['post_type'] ) ) {
-				$query_args['post_type'] = $params['post_type'];
-			}
-
-			$posts = get_posts( $query_args );
-
-			foreach ( $posts as $key => &$post ) {
-				$post->meta = get_post_meta( $post->ID );
-				$post->meta = apply_filters( 'sce_export_prepare_post_meta', $post->meta, $post );
-				$post->post_content = apply_filters( 'sce_export_prepare_post_content', $post->post_content, $post );
-
-				$post->taxonomies = array();
-
-				foreach ( array_values( get_post_taxonomies( $post ) ) as $taxonomy ) {
-
-					$fields = 'names';
-					if ( is_taxonomy_hierarchical( $taxonomy ) ) {
-						$fields = 'ids';
-					}
-
-					$current_tax = wp_get_object_terms($post->ID, $taxonomy, array(
-						'fields' => $fields
-					));
-
-					if ( ! is_wp_error($current_tax) && ! empty( $current_tax ) ) {
-						$post->taxonomies[$taxonomy] = $current_tax;
-					} else {
-						unset( $post->taxonomies[$taxonomy] );
-					}
-				}
-			}
-
-			return rest_ensure_response( $posts );
-		}
-
-		/**
-		 * @param WP_REST_Request $request
-		 *
-		 * @return WP_REST_Response
-		 */
-		function rest_export_posts_v2( $request ){
-			$options = get_option('starter_content_exporter');
-
-			$params = $request->get_params();
-
-			$query_args = array(
-				'post__in' => $params['include'],
-				'posts_per_page' => 100,
-			);
-
-			if ( ! empty( $params['post_type'] ) ) {
-				$query_args['post_type'] = $params['post_type'];
-			}
-
-			$posts = get_posts( $query_args );
-
-			foreach ( $posts as $key => &$post ) {
-				$post->meta = get_post_meta( $post->ID );
-				$post->meta = apply_filters( 'sce_export_prepare_post_meta', $post->meta, $post );
-				$post->post_content = apply_filters( 'sce_export_prepare_post_content', $post->post_content, $post );
-
-				$post->taxonomies = array();
-
-				foreach ( array_values( get_post_taxonomies( $post ) ) as $taxonomy ) {
-
-					$fields = 'names';
-					if ( is_taxonomy_hierarchical( $taxonomy ) ) {
-						$fields = 'ids';
-					}
-
-					$current_tax = wp_get_object_terms($post->ID, $taxonomy, array(
-						'fields' => $fields
-					));
-
-					if ( ! is_wp_error($current_tax) && ! empty( $current_tax ) ) {
-						$post->taxonomies[$taxonomy] = $current_tax;
-					} else {
-						unset( $post->taxonomies[$taxonomy] );
-					}
-				}
-			}
-
-			return rest_ensure_response( array(
-				'code'    => 'success',
-				'message' => '',
-				'data'    => array(
-					'posts' => $posts,
-				),
-			) );
-		}
-
-		function parse_content_for_images( $content, $post ){
-			$upload_dir = wp_get_upload_dir();
-
-			$explode = explode( '/wp-content/uploads/', $upload_dir['baseurl'] );
-			$base_url = '/wp-content/uploads/' . $explode[1];
-			$attachments_regex =  '~(?<=src=\").+((' . $base_url . ')|(files\.wordpress\.com)).+(?=[\"\ ])~U';
-
-			preg_match_all( $attachments_regex, $content, $result );
-
-			foreach ( $result[0] as $i => $match ) {
-				$original_image_url = $match;
-				$new_url = $this->get_rotated_placeholder_url( $original_image_url );
-				$content = str_replace( $original_image_url, $new_url, $content );
-			}
-
-			// search for shortcodes with attachments ids like gallery
-			if ( has_shortcode( $content, 'gallery' ) ) {
-				$content = $this->replace_gallery_shortcodes_ids($content);
-			}
-
-			return $content;
-		}
-
-		function replace_gallery_shortcodes_ids( $content ) {
-			// pregmatch only the ids attribute
-			$pattern = '((\[gallery.*])?ids=\"(.*)\")';
-
-			$content = preg_replace_callback( $pattern, array(
-				$this,
-				'replace_gallery_shortcodes_ids_pregmatch_callback'
-			), $content );
-
-			return $content;
-		}
-
-		function replace_gallery_shortcodes_ids_pregmatch_callback( $matches ) {
-			if ( isset( $matches[2] ) && ! empty( $matches[2] ) ) {
-				$replace_ids = array();
-				$matches[2]  = explode( ',', $matches[2] );
-				foreach ( $matches[2] as $key => $attach_id ) {
-					$replace_ids[ $key ] = $this->get_rotated_placeholder_id( $attach_id );
-				}
-
-				$replace_string = implode( ',', $replace_ids );
-
-				return ' ids="' . $replace_string . '"';
-			}
-
-			// Do not replace anything if we have reached so far
-			return $matches[0];
-		}
-
-		function prepare_post_meta( $metas, $post ){
-
-			// useless meta
-			unset( $metas['_edit_lock'] );
-			unset( $metas['_wp_old_slug'] );
-			unset( $metas['_wpas_done_all'] );
-
-			// usually the attahcment_metadata will be regenerated
-			unset( $metas['_wp_attached_file'] );
-
-			foreach ( $this->gallery_meta_keys as $gallery_key ) {
-				if ( isset( $metas[$gallery_key] ) ) {
-					$selected_images = explode(',', $metas[$gallery_key][0]);
-
-					foreach ( $selected_images as $i => $attach_id ) {
-						$selected_images[$i] = $this->get_rotated_placeholder_id( $attach_id );
-					}
-
-					$metas[$gallery_key] = array( join( ',', $selected_images ) );
-				}
-			}
-
-			return $metas;
-		}
-
-		/**
-		 * @param WP_REST_Request $request
-		 *
-		 * @return WP_REST_Response
-		 */
-		function rest_export_terms( $request ) {
-			$options = get_option( 'starter_content_exporter' );
-
-			$params = $request->get_params();
-
-			$query_args = array(
-				'include'    => $params['include'],
-				'hide_empty' => false,
-			);
-
-			if ( ! empty( $params['taxonomy'] ) ) {
-				$query_args['taxonomy'] = $params['taxonomy'];
-			}
-
-			$terms = get_terms( $query_args );
-
-			foreach ( $terms as $key => $term ) {
-				$term->meta = get_term_meta( $term->term_id );
-			}
-
-			return rest_ensure_response( $terms );
-		}
-
-		/**
-		 * @param WP_REST_Request $request
-		 *
-		 * @return WP_REST_Response
-		 */
-		function rest_export_terms_v2( $request ) {
-			$options = get_option( 'starter_content_exporter' );
-
-			$params = $request->get_params();
-
-			$query_args = array(
-				'include'    => $params['include'],
-				'hide_empty' => false,
-			);
-
-			if ( ! empty( $params['taxonomy'] ) ) {
-				$query_args['taxonomy'] = $params['taxonomy'];
-			}
-
-			$terms = get_terms( $query_args );
-			if ( is_wp_error( $terms ) ) {
-				return rest_ensure_response( $terms );
-			}
-
-			foreach ( $terms as $key => $term ) {
-				$term->meta = get_term_meta( $term->term_id );
-			}
-
-			return rest_ensure_response( array(
-				'code'    => 'success',
-				'message' => '',
-				'data'    => array(
-					'terms' => $terms,
-				),
-			) );
-		}
-
-		/**
-		 * @param WP_REST_Request $request
-		 *
-		 * @return WP_REST_Response
-		 */
-		function rest_export_media( $request ) {
-			$params = $request->get_params();
-
-			if ( empty( $params['id'] ) ) {
-				return rest_ensure_response( array(
-					'code'    => 'missing_id',
-					'message' => 'You need to provide an attachment id.',
-					'data'    => array(),
-				) );
-			}
-
-			$id = $params['id'];
-
-			$file = get_attached_file( $id );
-
-			$type = pathinfo( $file, PATHINFO_EXTENSION );
-
-			$data = file_get_contents( $file );
-
-			$base64 = 'data:image/' . $type . ';base64,' . base64_encode( $data );
-
-			return rest_ensure_response( array(
-				'title'     => get_the_title( $id ),
-				'mime_type' => get_post_mime_type( $id ),
-				'ext'       => $type,
-				'data'      => $base64,
-			) );
-		}
-
-		function rest_export_widgets(){
-			$posted_array = $this->get_available_widgets();
-
-			$sidebars_array = get_option( 'sidebars_widgets' );
-			$sidebar_export = array();
-			foreach ( $sidebars_array as $sidebar => $widgets ) {
-				if ( !empty( $widgets ) && is_array( $widgets ) ) {
-					foreach ( $widgets as $sidebar_widget ) {
-						if ( in_array( $sidebar_widget, array_keys( $posted_array ) ) ) {
-							$sidebar_export[$sidebar][] = $sidebar_widget;
-						}
-					}
-				}
-			}
-			$widgets = array( );
-			foreach ( $posted_array as $k => $v ) {
-				$widget = array( );
-				$widget['type'] = trim( substr( $k, 0, strrpos( $k, '-' ) ) );
-				$widget['type-index'] = trim( substr( $k, strrpos( $k, '-' ) + 1 ) );
-				$widget['export_flag'] = ($v == 'on') ? true : false;
-				$widgets[] = $widget;
-			}
-			$widgets_array = array( );
-			foreach ( $widgets as $widget ) {
-				$widget_val = get_option( 'widget_' . $widget['type'] );
-				$widget_val = apply_filters( 'pixcare_sce_widget_data_export_' . $widget['type'], $widget_val, $widget['type'] );
-				$multiwidget_val = $widget_val['_multiwidget'];
-
-				if ( isset( $widget_val[$widget['type-index']] ) ) {
-					$widgets_array[$widget['type']][$widget['type-index']] = $widget_val[$widget['type-index']];
-				}
-
-				if ( isset( $widgets_array[$widget['type']]['_multiwidget'] ) )
-					unset( $widgets_array[$widget['type']]['_multiwidget'] );
-
-				$widgets_array[$widget['type']]['_multiwidget'] = $multiwidget_val;
-			}
-			unset( $widgets_array['export'] );
-			$export_array = array( $sidebar_export, $widgets_array );
-
-			return rest_ensure_response( $export_array );
-		}
-
-		/**
-		 * @param WP_REST_Request $request
-		 *
-		 * @return WP_REST_Response
-		 */
-		function rest_export_media_v2( $request ) {
-			$params = $request->get_params();
-
-			if ( empty( $params['id'] ) ) {
-				return rest_ensure_response( array(
-					'code'    => 'missing_id',
-					'message' => 'You need to provide an attachment id.',
-					'data'    => array(),
-				) );
-			}
-
-			$id = $params['id'];
-
-			$file = get_attached_file( $id );
-
-			$type = pathinfo( $file, PATHINFO_EXTENSION );
-
-			$data = file_get_contents( $file );
-
-			$base64 = 'data:image/' . $type . ';base64,' . base64_encode( $data );
-
-			return rest_ensure_response( array(
-				'code'    => 'success',
-				'message' => '',
-				'data'    => array(
-					'media' => array(
-						'title'     => get_the_title( $id ),
-						'mime_type' => get_post_mime_type( $id ),
-						'ext'       => $type,
-						'data'      => $base64,
-					),
-				),
-			) );
-		}
-
-		function rest_export_widgets_v2(){
-			$posted_array = $this->get_available_widgets();
-
-			$sidebars_array = get_option( 'sidebars_widgets' );
-			$sidebar_export = array();
-			foreach ( $sidebars_array as $sidebar => $widgets ) {
-				if ( !empty( $widgets ) && is_array( $widgets ) ) {
-					foreach ( $widgets as $sidebar_widget ) {
-						if ( in_array( $sidebar_widget, array_keys( $posted_array ) ) ) {
-							$sidebar_export[$sidebar][] = $sidebar_widget;
-						}
-					}
-				}
-			}
-			$widgets = array( );
-			foreach ( $posted_array as $k => $v ) {
-				$widget = array( );
-				$widget['type'] = trim( substr( $k, 0, strrpos( $k, '-' ) ) );
-				$widget['type-index'] = trim( substr( $k, strrpos( $k, '-' ) + 1 ) );
-				$widget['export_flag'] = ($v == 'on') ? true : false;
-				$widgets[] = $widget;
-			}
-			$widgets_array = array( );
-			foreach ( $widgets as $widget ) {
-				$widget_val = get_option( 'widget_' . $widget['type'] );
-				$widget_val = apply_filters( 'pixcare_sce_widget_data_export_' . $widget['type'], $widget_val, $widget['type'] );
-				$multiwidget_val = $widget_val['_multiwidget'];
-
-				if ( isset( $widget_val[$widget['type-index']] ) ) {
-					$widgets_array[$widget['type']][$widget['type-index']] = $widget_val[$widget['type-index']];
-				}
-
-				if ( isset( $widgets_array[$widget['type']]['_multiwidget'] ) )
-					unset( $widgets_array[$widget['type']]['_multiwidget'] );
-
-				$widgets_array[$widget['type']]['_multiwidget'] = $multiwidget_val;
-			}
-			unset( $widgets_array['export'] );
-			$export_array = array( $sidebar_export, $widgets_array );
-
-			return rest_ensure_response( array(
-				'code'    => 'success',
-				'message' => '',
-				'data'    => array(
-					'widgets' => $export_array,
-				),
-			) );
-		}
-
-		function rest_export_data(){
+		public function rest_export_data(){
 			$options = get_option('starter_content_exporter');
 
 			$return = array(
@@ -770,7 +356,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			return rest_ensure_response( $return );
 		}
 
-		function rest_export_data_v2(){
+		public function rest_export_data_v2(){
 			$options = get_option('starter_content_exporter');
 
 			$data = array(
@@ -794,27 +380,30 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			if ( ! empty( $options ) ) {
 				foreach ( $options as $key => $option ) {
 					if ( strpos( $key, 'post_type_' ) !== false ) {
-						$data['post_types'][ str_replace( 'post_type_', '', $key ) ] = $option;
+						$post_type = str_replace( 'post_type_', '', $key );
+						$priority = 10;
+
+						/**
+						 * We need to make sure that the navigation items are imported the last
+						 * The metadata of a menu item can contain an object_id which should be mapped, but we can only map existing IDS
+						 */
+						if ( 'nav_menu_item' === $post_type ) {
+							$priority = 100;
+						}
+
+						$data['post_types'][] = array(
+							'name' => $post_type,
+							'ids' => $option,
+							'priority' => $priority, // for now all will have the same priority
+						);
+					} elseif ( strpos( $key, 'tax_' ) !== false ) {
+						$taxonomy = str_replace( 'tax_', '', $key );
+						$data['taxonomies'][] = array(
+							'name' => $taxonomy,
+							'ids' => $option,
+							'priority' => 10, // for now all will have the same priority
+						);
 					}
-
-					if ( strpos( $key, 'tax_' ) !== false ) {
-						$data['taxonomies'][ str_replace( 'tax_', '', $key ) ] = $option;
-					}
-				}
-
-				/**
-				 * Tricky stuff
-				 * We need to make sure that the navigation items are imported the last
-				 * The metadata of a menu item can contain an object_id which should be mapped, but we can only map existing IDS
-				 *
-				 * So we will move the nav_menu_item post type to at the end of the data array.
-				 */
-				$last_post_type_key = end( $data['post_types'] );
-
-				if ( isset( $data['post_types']['nav_menu_item'] ) && 'nav_menu_item' !== $last_post_type_key ) {
-					$tmp = $data['post_types']['nav_menu_item'];
-					unset( $data['post_types']['nav_menu_item'] );
-					$data['post_types']['nav_menu_item'] = $tmp;
 				}
 			}
 
@@ -825,6 +414,420 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				'code'    => 'success',
 				'message' => '',
 				'data'    => $data,
+			) );
+		}
+
+		/**
+		 * @param WP_REST_Request $request
+		 *
+		 * @return WP_REST_Response
+		 */
+		public function rest_export_posts( $request ) {
+			$options = get_option('starter_content_exporter');
+
+			$params = $request->get_params();
+
+			$query_args = array(
+				'post__in' => $params['include'],
+				'posts_per_page' => 100,
+			);
+
+			if ( ! empty( $params['post_type'] ) ) {
+				$query_args['post_type'] = $params['post_type'];
+			}
+
+			$posts = get_posts( $query_args );
+
+			foreach ( $posts as $key => &$post ) {
+				$post->meta = get_post_meta( $post->ID );
+				$post->meta = apply_filters( 'sce_export_prepare_post_meta', $post->meta, $post );
+				$post->post_content = apply_filters( 'sce_export_prepare_post_content', $post->post_content, $post );
+
+				$post->taxonomies = array();
+
+				foreach ( array_values( get_post_taxonomies( $post ) ) as $taxonomy ) {
+
+					$fields = 'names';
+					if ( is_taxonomy_hierarchical( $taxonomy ) ) {
+						$fields = 'ids';
+					}
+
+					$current_tax = wp_get_object_terms($post->ID, $taxonomy, array(
+						'fields' => $fields
+					));
+
+					if ( ! is_wp_error($current_tax) && ! empty( $current_tax ) ) {
+						$post->taxonomies[$taxonomy] = $current_tax;
+					} else {
+						unset( $post->taxonomies[$taxonomy] );
+					}
+				}
+			}
+
+			return rest_ensure_response( $posts );
+		}
+
+		/**
+		 * @param WP_REST_Request $request
+		 *
+		 * @return WP_REST_Response
+		 */
+		public function rest_export_posts_v2( $request ){
+			$options = get_option('starter_content_exporter');
+
+			$params = $request->get_params();
+
+			$query_args = array(
+				'post__in' => $params['include'],
+				'posts_per_page' => 100,
+			);
+
+			if ( ! empty( $params['post_type'] ) ) {
+				$query_args['post_type'] = $params['post_type'];
+			}
+
+			$posts = get_posts( $query_args );
+
+			foreach ( $posts as $key => &$post ) {
+				$post->meta = get_post_meta( $post->ID );
+				$post->meta = apply_filters( 'sce_export_prepare_post_meta', $post->meta, $post );
+				$post->post_content = apply_filters( 'sce_export_prepare_post_content', $post->post_content, $post );
+
+				$post->taxonomies = array();
+
+				foreach ( array_values( get_post_taxonomies( $post ) ) as $taxonomy ) {
+
+					$fields = 'names';
+					if ( is_taxonomy_hierarchical( $taxonomy ) ) {
+						$fields = 'ids';
+					}
+
+					$current_tax = wp_get_object_terms($post->ID, $taxonomy, array(
+						'fields' => $fields
+					));
+
+					if ( ! is_wp_error($current_tax) && ! empty( $current_tax ) ) {
+						$post->taxonomies[$taxonomy] = $current_tax;
+					} else {
+						unset( $post->taxonomies[$taxonomy] );
+					}
+				}
+			}
+
+			return rest_ensure_response( array(
+				'code'    => 'success',
+				'message' => '',
+				'data'    => array(
+					'posts' => $posts,
+				),
+			) );
+		}
+
+		protected function parse_content_for_images( $content, $post ){
+			$upload_dir = wp_get_upload_dir();
+
+			$explode = explode( '/wp-content/uploads/', $upload_dir['baseurl'] );
+			$base_url = '/wp-content/uploads/' . $explode[1];
+			$attachments_regex =  '~(?<=src=\").+((' . $base_url . ')|(files\.wordpress\.com)).+(?=[\"\ ])~U';
+
+			preg_match_all( $attachments_regex, $content, $result );
+
+			foreach ( $result[0] as $i => $match ) {
+				$original_image_url = $match;
+				$new_url = $this->get_rotated_placeholder_url( $original_image_url );
+				$content = str_replace( $original_image_url, $new_url, $content );
+			}
+
+			// search for shortcodes with attachments ids like gallery
+			if ( has_shortcode( $content, 'gallery' ) ) {
+				$content = $this->replace_gallery_shortcodes_ids($content);
+			}
+
+			return $content;
+		}
+
+		protected function replace_gallery_shortcodes_ids( $content ) {
+			// pregmatch only the ids attribute
+			$pattern = '((\[gallery.*])?ids=\"(.*)\")';
+
+			$content = preg_replace_callback( $pattern, array(
+				$this,
+				'replace_gallery_shortcodes_ids_pregmatch_callback'
+			), $content );
+
+			return $content;
+		}
+
+		protected function replace_gallery_shortcodes_ids_pregmatch_callback( $matches ) {
+			if ( isset( $matches[2] ) && ! empty( $matches[2] ) ) {
+				$replace_ids = array();
+				$matches[2]  = explode( ',', $matches[2] );
+				foreach ( $matches[2] as $key => $attach_id ) {
+					$replace_ids[ $key ] = $this->get_rotated_placeholder_id( $attach_id );
+				}
+
+				$replace_string = implode( ',', $replace_ids );
+
+				return ' ids="' . $replace_string . '"';
+			}
+
+			// Do not replace anything if we have reached so far
+			return $matches[0];
+		}
+
+		public function prepare_post_meta( $metas, $post ){
+
+			// useless meta
+			unset( $metas['_edit_lock'] );
+			unset( $metas['_wp_old_slug'] );
+			unset( $metas['_wpas_done_all'] );
+
+			// usually the attahcment_metadata will be regenerated
+			unset( $metas['_wp_attached_file'] );
+
+			foreach ( $this->gallery_meta_keys as $gallery_key ) {
+				if ( isset( $metas[$gallery_key] ) ) {
+					$selected_images = explode(',', $metas[$gallery_key][0]);
+
+					foreach ( $selected_images as $i => $attach_id ) {
+						$selected_images[$i] = $this->get_rotated_placeholder_id( $attach_id );
+					}
+
+					$metas[$gallery_key] = array( join( ',', $selected_images ) );
+				}
+			}
+
+			return $metas;
+		}
+
+		/**
+		 * @param WP_REST_Request $request
+		 *
+		 * @return WP_REST_Response
+		 */
+		public function rest_export_terms( $request ) {
+			$options = get_option( 'starter_content_exporter' );
+
+			$params = $request->get_params();
+
+			$query_args = array(
+				'include'    => $params['include'],
+				'hide_empty' => false,
+			);
+
+			if ( ! empty( $params['taxonomy'] ) ) {
+				$query_args['taxonomy'] = $params['taxonomy'];
+			}
+
+			$terms = get_terms( $query_args );
+
+			foreach ( $terms as $key => $term ) {
+				$term->meta = get_term_meta( $term->term_id );
+			}
+
+			return rest_ensure_response( $terms );
+		}
+
+		/**
+		 * @param WP_REST_Request $request
+		 *
+		 * @return WP_REST_Response
+		 */
+		public function rest_export_terms_v2( $request ) {
+			$options = get_option( 'starter_content_exporter' );
+
+			$params = $request->get_params();
+
+			$query_args = array(
+				'include'    => $params['include'],
+				'hide_empty' => false,
+			);
+
+			if ( ! empty( $params['taxonomy'] ) ) {
+				$query_args['taxonomy'] = $params['taxonomy'];
+			}
+
+			$terms = get_terms( $query_args );
+			if ( is_wp_error( $terms ) ) {
+				return rest_ensure_response( $terms );
+			}
+
+			foreach ( $terms as $key => $term ) {
+				$term->meta = get_term_meta( $term->term_id );
+			}
+
+			return rest_ensure_response( array(
+				'code'    => 'success',
+				'message' => '',
+				'data'    => array(
+					'terms' => $terms,
+				),
+			) );
+		}
+
+		/**
+		 * @param WP_REST_Request $request
+		 *
+		 * @return WP_REST_Response
+		 */
+		public function rest_export_media( $request ) {
+			$params = $request->get_params();
+
+			if ( empty( $params['id'] ) ) {
+				return rest_ensure_response( array(
+					'code'    => 'missing_id',
+					'message' => 'You need to provide an attachment id.',
+					'data'    => array(),
+				) );
+			}
+
+			$id = $params['id'];
+
+			$file = get_attached_file( $id );
+
+			$type = pathinfo( $file, PATHINFO_EXTENSION );
+
+			$data = file_get_contents( $file );
+
+			$base64 = 'data:image/' . $type . ';base64,' . base64_encode( $data );
+
+			return rest_ensure_response( array(
+				'title'     => get_the_title( $id ),
+				'mime_type' => get_post_mime_type( $id ),
+				'ext'       => $type,
+				'data'      => $base64,
+			) );
+		}
+
+		public function rest_export_widgets(){
+			$posted_array = $this->get_available_widgets();
+
+			$sidebars_array = get_option( 'sidebars_widgets' );
+			$sidebar_export = array();
+			foreach ( $sidebars_array as $sidebar => $widgets ) {
+				if ( !empty( $widgets ) && is_array( $widgets ) ) {
+					foreach ( $widgets as $sidebar_widget ) {
+						if ( in_array( $sidebar_widget, array_keys( $posted_array ) ) ) {
+							$sidebar_export[$sidebar][] = $sidebar_widget;
+						}
+					}
+				}
+			}
+			$widgets = array( );
+			foreach ( $posted_array as $k => $v ) {
+				$widget = array( );
+				$widget['type'] = trim( substr( $k, 0, strrpos( $k, '-' ) ) );
+				$widget['type-index'] = trim( substr( $k, strrpos( $k, '-' ) + 1 ) );
+				$widget['export_flag'] = ($v == 'on') ? true : false;
+				$widgets[] = $widget;
+			}
+			$widgets_array = array( );
+			foreach ( $widgets as $widget ) {
+				$widget_val = get_option( 'widget_' . $widget['type'] );
+				$widget_val = apply_filters( 'pixcare_sce_widget_data_export_' . $widget['type'], $widget_val, $widget['type'] );
+				$multiwidget_val = $widget_val['_multiwidget'];
+
+				if ( isset( $widget_val[$widget['type-index']] ) ) {
+					$widgets_array[$widget['type']][$widget['type-index']] = $widget_val[$widget['type-index']];
+				}
+
+				if ( isset( $widgets_array[$widget['type']]['_multiwidget'] ) )
+					unset( $widgets_array[$widget['type']]['_multiwidget'] );
+
+				$widgets_array[$widget['type']]['_multiwidget'] = $multiwidget_val;
+			}
+			unset( $widgets_array['export'] );
+			$export_array = array( $sidebar_export, $widgets_array );
+
+			return rest_ensure_response( $export_array );
+		}
+
+		/**
+		 * @param WP_REST_Request $request
+		 *
+		 * @return WP_REST_Response
+		 */
+		public function rest_export_media_v2( $request ) {
+			$params = $request->get_params();
+
+			if ( empty( $params['id'] ) ) {
+				return rest_ensure_response( array(
+					'code'    => 'missing_id',
+					'message' => 'You need to provide an attachment id.',
+					'data'    => array(),
+				) );
+			}
+
+			$id = $params['id'];
+
+			$file = get_attached_file( $id );
+
+			$type = pathinfo( $file, PATHINFO_EXTENSION );
+
+			$data = file_get_contents( $file );
+
+			$base64 = 'data:image/' . $type . ';base64,' . base64_encode( $data );
+
+			return rest_ensure_response( array(
+				'code'    => 'success',
+				'message' => '',
+				'data'    => array(
+					'media' => array(
+						'title'     => get_the_title( $id ),
+						'mime_type' => get_post_mime_type( $id ),
+						'ext'       => $type,
+						'data'      => $base64,
+					),
+				),
+			) );
+		}
+
+		public function rest_export_widgets_v2(){
+			$posted_array = $this->get_available_widgets();
+
+			$sidebars_array = get_option( 'sidebars_widgets' );
+			$sidebar_export = array();
+			foreach ( $sidebars_array as $sidebar => $widgets ) {
+				if ( !empty( $widgets ) && is_array( $widgets ) ) {
+					foreach ( $widgets as $sidebar_widget ) {
+						if ( in_array( $sidebar_widget, array_keys( $posted_array ) ) ) {
+							$sidebar_export[$sidebar][] = $sidebar_widget;
+						}
+					}
+				}
+			}
+			$widgets = array( );
+			foreach ( $posted_array as $k => $v ) {
+				$widget = array( );
+				$widget['type'] = trim( substr( $k, 0, strrpos( $k, '-' ) ) );
+				$widget['type-index'] = trim( substr( $k, strrpos( $k, '-' ) + 1 ) );
+				$widget['export_flag'] = ($v == 'on') ? true : false;
+				$widgets[] = $widget;
+			}
+			$widgets_array = array( );
+			foreach ( $widgets as $widget ) {
+				$widget_val = get_option( 'widget_' . $widget['type'] );
+				$widget_val = apply_filters( 'pixcare_sce_widget_data_export_' . $widget['type'], $widget_val, $widget['type'] );
+				$multiwidget_val = $widget_val['_multiwidget'];
+
+				if ( isset( $widget_val[$widget['type-index']] ) ) {
+					$widgets_array[$widget['type']][$widget['type-index']] = $widget_val[$widget['type-index']];
+				}
+
+				if ( isset( $widgets_array[$widget['type']]['_multiwidget'] ) )
+					unset( $widgets_array[$widget['type']]['_multiwidget'] );
+
+				$widgets_array[$widget['type']]['_multiwidget'] = $multiwidget_val;
+			}
+			unset( $widgets_array['export'] );
+			$export_array = array( $sidebar_export, $widgets_array );
+
+			return rest_ensure_response( array(
+				'code'    => 'success',
+				'message' => '',
+				'data'    => array(
+					'widgets' => $export_array,
+				),
 			) );
 		}
 
