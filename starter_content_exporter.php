@@ -835,7 +835,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		 * Get all the options and theme mods which should be added before the import action
 		 * @return array
 		 */
-		private function get_pre_settings(){
+		protected function get_pre_settings(){
 			$mods = get_theme_mods();
 			$options = get_option('starter_content_exporter');
 
@@ -878,7 +878,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		 * Get all the options and theme mods which should be added after the import action
 		 * @return array
 		 */
-		private function get_post_settings(){
+		protected function get_post_settings(){
 			$mods = get_theme_mods();
 			$options = get_option('starter_content_exporter');
 
@@ -922,7 +922,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			return $returned_options;
 		}
 
-		function prepare_text_widgets( $widget_data, $type ){
+		public function prepare_text_widgets( $widget_data, $type ){
 
 			foreach ( $widget_data as $widget_key => $widget ) {
 				if ( '_multiwidget' === $widget_key || ! isset( $widget_data[ $widget_key ]['text'] ) ) {
@@ -958,7 +958,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			return $widget_data;
 		}
 
-		function prepare_menu_widgets( $widget_data, $type ){
+		public function prepare_menu_widgets( $widget_data, $type ){
 			foreach ( $widget_data as $widget_key => $widget ) {
 				if ( '_multiwidget' === $widget_key || ! isset( $widget_data[ $widget_key ]['nav_menu'] ) ) {
 					continue;
@@ -976,7 +976,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		 * Widget functions inspired from Widget Data - Setting Import/Export Plugin
 		 * by Voce Communications - Kevin Langley, Sean McCafferty, Mark Parolisi
 		 */
-		private function get_widgets() {
+		protected function get_widgets() {
 			$posted_array = $this->get_available_widgets();
 
 			$sidebars_array = get_option( 'sidebars_widgets' );
@@ -1021,7 +1021,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			return base64_encode( $json );
 		}
 
-		private function get_available_widgets() {
+		protected function get_available_widgets() {
 			global $wp_registered_sidebars;
 
 			$sidebar_widgets = wp_get_sidebars_widgets();
@@ -1053,7 +1053,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			return $return;
 		}
 
-		private function get_sidebar_info( $sidebar_id ) {
+		protected function get_sidebar_info( $sidebar_id ) {
 			global $wp_registered_sidebars;
 
 			//since wp_inactive_widget is only used in widgets.php
@@ -1068,7 +1068,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			return false;
 		}
 
-		private function get_client_ignored_images(){
+		protected function get_client_ignored_images(){
 			if ( isset( $_POST['ignored_images'] ) && is_array( $_POST['ignored_images'] ) ) {
 				return $_POST['ignored_images'];
 			}
