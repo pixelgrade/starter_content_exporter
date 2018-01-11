@@ -3,7 +3,7 @@
  * Plugin Name:       Starter Content Exporter
  * Plugin URI:        https://andrei-lupu.com/
  * Description:       A plugin which exposes exportable data through REST API
- * Version:           0.1.7
+ * Version:           0.1.8
  * Author:            Andrei Lupu
  * Author URI:        https://andrei-lupu.com/
  * License:           GPL-2.0+
@@ -876,7 +876,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			return $id;
 		}
 
-		function is_comma_list( $value,$request,$name) {
+		function is_comma_list( $value, $request, $name ) {
 			$is_number = false;
 
 			$e = explode(',', $value );
@@ -894,7 +894,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			return $is_number;
 		}
 
-		function is_numeric_array( $value,$request,$name ) {
+		function is_numeric_array( $value, $request, $name ) {
 
 			if ( ! is_array( $value ) ) {
 				return false;
@@ -902,7 +902,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 			$is_number = false;
 
-			foreach ($value as $val ) {
+			foreach ( $value as $val ) {
 				if ( ! is_numeric( $val ) ) {
 					$is_number = false;
 					break;
