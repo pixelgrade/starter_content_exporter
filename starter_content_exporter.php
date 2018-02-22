@@ -575,13 +575,14 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			foreach ( $widgets as $widget ) {
 				$widget_val = get_option( 'widget_' . $widget['type'] );
 
-				// Allow others to take action and apply a custom logic to the widget data, before export (think replacing image ids with new ones).
-				$widget_val = apply_filters( 'pixcare_sce_widget_data_export_' . $widget['type'], $widget_val, $widget['type'], $params );
+				// Allow others to take action and apply a custom logic to the whole widgets data for a certain widget type, before export (think replacing image ids with new ones).
+				$widget_val = apply_filters( 'pixcare_sce_widgets_data_export_' . $widget['type'], $widget_val, $widget['type'], $params );
 
 				$multiwidget_val = $widget_val['_multiwidget'];
 
 				if ( isset( $widget_val[ $widget['type-index'] ] ) ) {
-					$widgets_array[ $widget['type'] ][ $widget['type-index'] ] = $widget_val[ $widget['type-index'] ];
+					// Allow others to take action and apply a custom logic to the widget data, before export (think replacing image ids with new ones).
+					$widgets_array[ $widget['type'] ][ $widget['type-index'] ] = apply_filters( 'pixcare_sce_widget_data_export_' . $widget['type'], $widget_val[ $widget['type-index'] ], $widget['type'], $params );
 				}
 
 				if ( isset( $widgets_array[ $widget['type'] ]['_multiwidget'] ) ) {
@@ -591,7 +592,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				$widgets_array[ $widget['type'] ]['_multiwidget'] = $multiwidget_val;
 			}
 			unset( $widgets_array['export'] );
-			$export_array = array( $sidebar_export, $widgets_array );
+			$export_array = apply_filters( 'pixcare_sce_widgets_export', array( $sidebar_export, $widgets_array ), $params );
 
 			return rest_ensure_response( array(
 				'code'    => 'success',
@@ -705,8 +706,11 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 				$upload_dir = wp_get_upload_dir();
 
-				$explode = explode( '/wp-content/uploads/', $upload_dir['baseurl'] );
-				$base_url = '/wp-content/uploads/' . $explode[1];
+				$explode           = explode( '/wp-content/uploads/', $upload_dir['baseurl'] );
+				$base_url = '/wp-content/uploads/';
+				if ( ! empty( $explode[1] ) ) {
+					$base_url = trailingslashit( '/wp-content/uploads/' . $explode[1] );
+				}
 				$attachments_regex =  '~(?<=src=\").+((' . $base_url . ')|(files\.wordpress\.com)).+(?=[\"\ ])~U';
 
 				preg_match_all( $attachments_regex, $content, $result );
