@@ -79,8 +79,6 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			add_action( 'init', array( $this, 'init_demo_exporter' ), 100050 );
 			add_filter( 'socket_config_for_starter_content_exporter', array( $this, 'add_socket_config' ) );
 
-			add_action( 'rest_api_init', array( $this, 'add_rest_routes_api_v1' ) );
-
 			// The new standard following endpoints
 			add_action( 'rest_api_init', array( $this, 'add_rest_routes_api_v2' ) );
 
