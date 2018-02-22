@@ -386,15 +386,19 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			$upload_dir = wp_get_upload_dir();
 
 			$explode           = explode( '/wp-content/uploads/', $upload_dir['baseurl'] );
-			$base_url          = '/wp-content/uploads/' . $explode[1];
+			$base_url = '/wp-content/uploads/';
+			if ( ! empty( $explode[1] ) ) {
+				$base_url = trailingslashit( '/wp-content/uploads/' . $explode[1] );
+			}
 			$attachments_regex = '~(?<=src=\").+((' . $base_url . ')|(files\.wordpress\.com)).+(?=[\"\ ])~U';
 
 			preg_match_all( $attachments_regex, $content, $result );
-
-			foreach ( $result[0] as $i => $match ) {
-				$original_image_url = $match;
-				$new_url            = $this->get_rotated_placeholder_url( $original_image_url );
-				$content            = str_replace( $original_image_url, $new_url, $content );
+			if ( ! empty( $result[0] ) && is_array( $result[0] ) ) {
+				foreach ( $result[0] as $i => $match ) {
+					$original_image_url = $match;
+					$new_url            = $this->get_rotated_placeholder_url( $original_image_url );
+					$content            = str_replace( $original_image_url, $new_url, $content );
+				}
 			}
 
 			// search for shortcodes with attachments ids like gallery
