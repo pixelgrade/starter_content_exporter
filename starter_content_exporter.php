@@ -3,7 +3,7 @@
  * Plugin Name:       Starter Content Exporter
  * Plugin URI:        https://pixelgrade.com/
  * Description:       A plugin which exposes exportable data through the REST API.
- * Version:           0.3.1
+ * Version:           0.3.2
  * Author:            Andrei Lupu, Pixelgrade
  * Author URI:        https://andrei-lupu.com/
  * License:           GPL-2.0+
@@ -72,6 +72,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		private $ignored_theme_mods = array(
 			'pixcare_theme_config',
 			'support',
+			'pixcare_support',
 			'0',
 		);
 
