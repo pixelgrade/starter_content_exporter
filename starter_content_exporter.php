@@ -3,9 +3,9 @@
  * Plugin Name:       Starter Content Exporter
  * Plugin URI:        https://pixelgrade.com/
  * Description:       A plugin which exposes exportable data through the REST API.
- * Version:           0.3.2
- * Author:            Andrei Lupu, Pixelgrade
- * Author URI:        https://andrei-lupu.com/
+ * Version:           0.4.0
+ * Author:            Pixelgrade, Andrei Lupu, Vlad Olaru
+ * Author URI:        https://pixelgrade.com/
  * License:           GPL-2.0+
  * License URI:       http://www.gnu.org/licenses/gpl-2.0.txt
  * Text Domain:       socket
@@ -71,6 +71,11 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		 */
 		private $ignored_theme_mods = array(
 			'pixcare_theme_config',
+			'pixcare_license_hash',
+			'pixcare_license_status',
+			'pixcare_license_type',
+			'pixcare_license_expiry_date',
+			'pixcare_new_theme_version',
 			'support',
 			'pixcare_support',
 			'0',
@@ -662,6 +667,23 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 			// remove the ignored theme mods keys
 			$exported_mods = array_diff_key( $mods, array_flip( $this->ignored_theme_mods ) );
+
+			// Remove the ignored subtheme mods keys, that haven't already been removed.
+			if ( ! empty( $this->ignored_theme_mods ) ) {
+				// We will also treat ignored theme mods that target a specific suboptions, like 'rosa_options[something]'
+				foreach ( $this->ignored_theme_mods as $ignored_theme_mod ) {
+					if ( false !== strpos( $ignored_theme_mod, '[') ) {
+						preg_match( '#(.+)\[(?:[\'\"]*)([^\'\"]+)(?:[\'\"]*)\]#', $ignored_theme_mod,$matches );
+						if ( ! empty( $matches ) && ! empty( $matches[1] ) &&
+						     ! empty( $matches[2] ) &&
+						     isset( $exported_mods[ $matches[1] ] ) &&
+						     isset( $exported_mods[ $matches[1] ][ $matches[2] ] ) ) {
+
+							unset( $exported_mods[ $matches[1] ][ $matches[2] ] );
+						}
+					}
+				}
+			}
 
 			$returned_options = array(
 				// Legacy, keep it untill all the demos get their keys in UI
