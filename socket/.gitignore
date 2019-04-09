@@ -1,0 +1,16 @@
+*.log
+
+/.htaccess
+/license.txt
+/readme.html
+/sitemap.xml
+/sitemap.xml.gz
+
+.sass-cache
+node_modules
+
+css/*.map
+
+
+*.map
+.DS_Store
