@@ -1,3 +1,0 @@
-[submodule "socket"]
-	path = socket
-	url = https://github.com/pixelgrade/socket.git
