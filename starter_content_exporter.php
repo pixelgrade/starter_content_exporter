@@ -3,7 +3,7 @@
  * Plugin Name:       Starter Content Exporter
  * Plugin URI:        https://pixelgrade.com/
  * Description:       A plugin which exposes exportable data through the REST API.
- * Version:           0.5.1
+ * Version:           0.5.2
  * Author:            Pixelgrade, Andrei Lupu, Vlad Olaru
  * Author URI:        https://pixelgrade.com/
  * License:           GPL-2.0+
@@ -71,6 +71,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		 */
 		private $ignored_theme_mods = array(
 			'pixcare_license', // This is the new key
+			'pixassist_license', // This is the new key for Pixelgrade Assistant
 
 			'pixcare_theme_config',
 			'pixcare_license_hash',
@@ -626,7 +627,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 			// make the selected options keys exportable
 			if ( ! empty( $options['exported_pre_options'] ) ) {
-				// Legacy, keep pre_settings it untill all the demos get their keys in UI
+				// Legacy, keep pre_settings until all the demos get their keys in UI
 				$this->pre_settings['options'] = array_merge( $this->pre_settings['options'], $options['exported_pre_options']);
 			}
 
@@ -688,7 +689,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			}
 
 			$returned_options = array(
-				// Legacy, keep it untill all the demos get their keys in UI
+				// Legacy, keep it until all the demos get their keys in UI
 				'options' => array(
 					'page_on_front' => get_option('page_on_front'),
 					'page_for_posts' => get_option('page_for_posts'),
