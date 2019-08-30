@@ -118,7 +118,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			$config = array(
 				'page_title'  => 'Pick Exports',
 				'description' => '',
-				'nav_label'   => 'Demo Exporter',
+				'nav_label'   => 'Starter Content Exporter',
 				'options_key' => 'starter_content_exporter',
 				'sockets'     => array(),
 			);
