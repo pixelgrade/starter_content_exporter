@@ -3,8 +3,8 @@
  * Plugin Name:       Starter Content Exporter
  * Plugin URI:        https://pixelgrade.com/
  * Description:       A plugin which exposes exportable data through the REST API.
- * Version:           0.5.2
- * Author:            Pixelgrade, Andrei Lupu, Vlad Olaru
+ * Version:           0.6.0
+ * Author:            Pixelgrade, Vlad Olaru
  * Author URI:        https://pixelgrade.com/
  * License:           GPL-2.0+
  * License URI:       http://www.gnu.org/licenses/gpl-2.0.txt
@@ -893,19 +893,21 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			$client_placeholders = $this->get_client_placeholders();
 			$client_ignored_images = $this->get_client_ignored_images();
 
-			if ( isset( $client_ignored_images[$original_id] ) ) {
-				return $client_ignored_images[$original_id];
+			// If the $original_id is among the ignored images, we will just return the new attachment id.
+			if ( isset( $client_ignored_images[$original_id]['id'] ) ) {
+				return $client_ignored_images[$original_id]['id'];
 			}
 
-			// get the first key
-			reset($client_placeholders);
-			$new_thumb = key($client_placeholders);
+			// If the attachment is not ignored, we will replace it with a random one from the placeholders list.
 
-			if ( isset ( $client_placeholders[$new_thumb]['id'] ) ) {
-				return $client_placeholders[$new_thumb]['id'];
+			// get a random $client_placeholders key
+			$new_thumb_key = array_rand( $client_placeholders, 1 );
+			if ( isset ( $client_placeholders[$new_thumb_key]['id'] ) ) {
+				return $client_placeholders[$new_thumb_key]['id'];
 			}
 
-			return $new_thumb;
+			// We should never reach this place.
+			return $new_thumb_key;
 		}
 
 		/**
@@ -918,19 +920,20 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			$client_ignored_images = $this->get_client_ignored_images();
 			$attach_id = attachment_url_to_postid( $original_image_url );
 
-			if ( isset( $client_ignored_images[$attach_id] ) ) {
+			// If the $original_image_url is among the ignored images, we will just return the new attachment URL.
+			if ( isset( $client_ignored_images[$attach_id]['sizes']['full'] ) ) {
 				return $client_ignored_images[$attach_id]['sizes']['full'];
 			}
 
-			// get the first key
-			reset($client_placeholders);
-			$new_thumb = key($client_placeholders);
+			// If the attachment is not ignored, we will replace it with a random one from the placeholders list.
 
-			if ( isset ( $client_placeholders[$new_thumb]['sizes'] ) ) {
-				$new_attach = $client_placeholders[$new_thumb];
-				return $new_attach['sizes']['full'];
+			// get a random $client_placeholders key
+			$new_thumb_key = array_rand( $client_placeholders, 1 );
+			if ( isset ( $client_placeholders[$new_thumb_key]['sizes']['full'] ) ) {
+				return $client_placeholders[$new_thumb_key]['sizes']['full'];
 			}
 
+			// We should never reach this place.
 			return '#';
 		}
 
