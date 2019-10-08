@@ -3,7 +3,7 @@
  * Plugin Name:       Starter Content Exporter
  * Plugin URI:        https://pixelgrade.com/
  * Description:       A plugin which exposes exportable data through the REST API.
- * Version:           0.6.0
+ * Version:           0.7.0
  * Author:            Pixelgrade, Vlad Olaru
  * Author URI:        https://pixelgrade.com/
  * License:           GPL-2.0+
@@ -288,12 +288,10 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			);
 
 			if ( ! empty( $options['placeholders'] ) ) {
-				$data['media']['placeholders'] = explode( ',', $options['placeholders'] );
+				$data['media']['placeholders'] = $this->validate_attachment_ids( explode( ',', $options['placeholders'] ) );
 			}
 
-			if ( ! empty( $options['ignored_images'] ) ) {
-				$data['media']['ignored'] = explode( ',', $options['ignored_images'] );
-			}
+			$data['media']['ignored'] = $this->get_ignored_images();
 
 			if ( ! empty( $options ) ) {
 				foreach ( $options as $key => $option ) {
@@ -335,6 +333,22 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			) );
 		}
 
+		protected function validate_attachment_ids( $attachment_ids ) {
+			if ( empty( $attachment_ids ) ) {
+				$attachment_ids = array();
+			}
+			// Go through each one and make sure that they exist.
+			foreach ( $attachment_ids as $key => $attachment_id ) {
+				$attachment_id = absint( $attachment_id );
+				$file_path = get_attached_file( $attachment_id );
+				if ( empty( $file_path ) || ! file_exists( $file_path ) ) {
+					unset( $attachment_ids[ $key ] );
+				}
+			}
+
+			return $attachment_ids;
+		}
+
 		/**
 		 * @param WP_REST_Request $request
 		 *
@@ -357,12 +371,10 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			$posts = get_posts( $query_args );
 
 			foreach ( $posts as $key => &$post ) {
-				$post->meta         = get_post_meta( $post->ID );
-				$post->meta         = apply_filters( 'sce_export_prepare_post_meta', $post->meta, $post );
+				$post->meta         = apply_filters( 'sce_export_prepare_post_meta', get_post_meta( $post->ID ), $post );
 				$post->post_content = apply_filters( 'sce_export_prepare_post_content', $post->post_content, $post );
 
 				$post->taxonomies = array();
-
 				foreach ( array_values( get_post_taxonomies( $post ) ) as $taxonomy ) {
 
 					$fields = 'names';
@@ -525,24 +537,50 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				) );
 			}
 
-			$id = $params['id'];
+			$file_path = get_attached_file( absint( $params['id'] ) );
+			if ( empty( $file_path ) || ! file_exists( $file_path ) ) {
+				return rest_ensure_response( array(
+					'code'    => 'missing_attachment',
+					'message' => 'The attachment id is missing or it\'s file could not be found.',
+					'data'    => array(),
+				) );
+			}
 
-			$file = get_attached_file( $id );
+			// Also allow the svg mime type.
+			add_filter( 'upload_mimes', function( $mimes ) {
+				$mimes['svg'] = 'image/svg+xml';
 
-			$type = pathinfo( $file, PATHINFO_EXTENSION );
+				return $mimes;
+			}, 10, 1 );
 
-			$data = file_get_contents( $file );
+			$file_info = wp_check_filetype_and_ext( $file_path, $file_path );
+			if ( empty( $file_info['ext'] ) || empty( $file_info['type'] ) ) {
+				return rest_ensure_response( array(
+					'code'    => 'mime_error',
+					'message' => 'We could not determine the mime type of the media.',
+					'data'    => array(),
+				) );
+			}
 
-			$base64 = 'data:image/' . $type . ';base64,' . base64_encode( $data );
+			$imageData = file_get_contents( $file_path );
+			if ( empty( $imageData ) ) {
+				return rest_ensure_response( array(
+					'code'    => 'no_image_data',
+					'message' => 'We could not get the image contents.',
+					'data'    => array(),
+				) );
+			}
+
+			$base64 = 'data:' . $file_info['type'] . ';base64,' . base64_encode( $imageData );
 
 			return rest_ensure_response( array(
 				'code'    => 'success',
 				'message' => '',
 				'data'    => array(
 					'media' => array(
-						'title'     => pathinfo( $file, PATHINFO_FILENAME ),
-						'mime_type' => get_post_mime_type( $id ),
-						'ext'       => $type,
+						'title'     => pathinfo( $file_path, PATHINFO_FILENAME ),
+						'mime_type' => $file_info['type'],
+						'ext'       => $file_info['ext'],
 						'data'      => $base64,
 					),
 				),
@@ -823,7 +861,6 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		}
 
 		protected function get_available_widgets() {
-			global $wp_registered_sidebars;
 
 			$sidebar_widgets = wp_get_sidebars_widgets();
 			unset( $sidebar_widgets['wp_inactive_widgets'] );
@@ -883,8 +920,11 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			}
 
 			$options = get_option('starter_content_exporter');
-
-			$this->ignored_images = explode(',', $options['ignored_images'] );
+			if ( ! empty( $options['ignored_images'] ) ) {
+				$this->ignored_images = $this->validate_attachment_ids( explode( ',', $options['ignored_images'] ) );
+			} else {
+				$this->ignored_images = array();
+			}
 
 			return $this->ignored_images;
 		}
