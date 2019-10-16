@@ -3,7 +3,7 @@
  * Plugin Name:       Starter Content Exporter
  * Plugin URI:        https://pixelgrade.com/
  * Description:       A plugin which exposes exportable data through the REST API.
- * Version:           0.7.0
+ * Version:           0.8.0
  * Author:            Pixelgrade, Vlad Olaru
  * Author URI:        https://pixelgrade.com/
  * License:           GPL-2.0+
@@ -145,7 +145,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				'items' => array(),
 			);
 
-			$post_types = get_post_types( array( 'show_in_rest' => true ), 'objects' );
+			$post_types = get_post_types( array( 'can_export' => true ), 'objects' );
 
 			foreach ( $post_types as $post_type => $post_type_config ) {
 
