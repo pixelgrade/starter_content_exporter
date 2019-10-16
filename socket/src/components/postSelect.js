@@ -1,7 +1,6 @@
 import React from "react"
-import ReactDOM from "react-dom"
 import PropTypes from 'prop-types'
-// import _ from 'lodash'
+import _ from 'lodash'
 
 import {
 	Dropdown,
@@ -110,38 +109,82 @@ export default class SocketPostSelect extends React.Component {
 
 		// load all the posts
 		wp.api.loadPromise.done( function() {
-			var wpPosts = new wp.api.collections.Posts(),
-				posts = [],
-				query = {};
+			var posts = [];
 
-			if ( ! _.isUndefined( component.props.field.query ) ) {
-				query = { ...query, ...component.props.field.query };
+			if (!_.isUndefined(component.props.field.query.post_type) ) {
+				var collection = component.props.field.query.post_type;
+
+				// some PT have special collections.
+				if ( collection === 'post' ) {
+					collection = 'Posts';
+				}
+				if ( collection === 'page' ) {
+					collection = 'Pages';
+				}
+
+				collection = wp.api.utils.capitalizeAndCamelCaseDashes( collection );
+
+				var wpPosts;
+				if ( !_.isUndefined( wp.api.collections[collection] ) ) {
+					wpPosts = new wp.api.collections[collection];
+
+					wpPosts.fetch().done(function (models) {
+						{
+							Object.keys(models).map(function (i) {
+								let model = models[i];
+
+								let pre = '';
+								let title = pre + model.title.rendered;
+
+								if ( model.parent > 0 ) {
+									pre = ' –– '
+								}
+
+								if ( _.isEmpty( model.title.rendered ) ) {
+									title = pre + '<No title!>'
+								}
+
+								posts.push({ key: model.id, value: model.id.toString(), text: title });
+							})
+						}
+
+						component.setState( { posts: posts, loading: false } );
+					});
+				} else {
+					// The old way
+					var query = {};
+					wpPosts = new wp.api.collections.Posts();
+
+					if ( ! _.isUndefined( component.props.field.query ) ) {
+						query = { ...query, ...component.props.field.query };
+					}
+
+					wpPosts.fetch({
+						data : {
+							per_page: 100,
+							filter: query
+						} }).done(function (models) {
+						{Object.keys(models).map(function ( i ) {
+							let model = models[i];
+
+							let pre = '';
+							let title = pre + model.title.rendered;
+
+							if ( model.parent > 0 ) {
+								pre = ' –– '
+							}
+
+							if ( _.isEmpty( model.title.rendered ) ) {
+								title = pre + '<No title!>'
+							}
+
+							posts.push({ key: model.id, value: model.id.toString(), text: title });
+						})}
+
+						component.setState( { posts: posts, loading: false } );
+					});
+				}
 			}
-
-			wpPosts.fetch({
-				data : {
-					per_page: 100,
-					filter: query
-				} }).done(function (models) {
-					{Object.keys(models).map(function ( i ) {
-						let model = models[i];
-
-						let pre = '';
-						let title = pre + model.title.rendered;
-
-						if ( model.parent > 0 ) {
-							pre = ' –– '
-						}
-
-						if ( _.isEmpty( model.title.rendered ) ) {
-							title = pre + '<No title!>'
-						}
-
-						posts.push({ key: model.id, value: model.id.toString(), text: title });
-					})}
-
-					component.setState( { posts: posts, loading: false } );
-				});
 		});
 	}
 }

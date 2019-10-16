@@ -102,7 +102,7 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 
 		function socket_options_page() {
 			$state = $this->get_option( 'state' ); ?>
-			<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.2.2/semantic.min.css"></link>
+			<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/fomantic-ui/2.7.8/semantic.min.css"></link>
 			<div class="wrap">
 				<div class="socket-wrapper">
 					<header class="title">
@@ -159,7 +159,8 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 					'jquery',
 					'wp-util',
 					'wp-api',
-					'shortcode'
+					'shortcode',
+					'lodash'
 				),
 					filemtime( plugin_dir_path( __FILE__ ) . 'js/socket.js' ), true );
 
@@ -181,8 +182,8 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 				'config'    => $this->config,
 				'values'    => $this->values,
 				'wp' => array(
-					'taxonomies' => get_taxonomies( array( 'show_in_rest' => true ), 'objects' ),
-					'post_types' =>get_post_types( array( 'show_in_rest' => true ), 'objects' )
+					'taxonomies' => get_taxonomies( array( 'can_export' => true ), 'objects' ),
+					'post_types' =>get_post_types( array( 'can_export' => true ), 'objects' )
 				)
 			);
 

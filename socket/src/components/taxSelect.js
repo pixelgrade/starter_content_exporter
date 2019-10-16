@@ -1,10 +1,10 @@
 import React from "react"
-import ReactDOM from "react-dom"
 import PropTypes from 'prop-types'
 import {
 	Dropdown,
 	Form
 } from 'semantic-ui-react'
+import _ from 'lodash'
 
 export default class SocketTaxSelect extends React.Component {
 	static propTypes = {
@@ -106,49 +106,46 @@ export default class SocketTaxSelect extends React.Component {
 		let component = this
 
 		wp.api.loadPromise.done( function() {
-			var query = {per_page: 100, taxonomy: 'categories'};
 
-			if (!_.isUndefined(component.props.field.query)) {
-				query = {...query, ...component.props.field.query};
-			}
+			if (!_.isUndefined(component.props.field.query.taxonomy) ) {
+				var collection = component.props.field.query.taxonomy;
 
-			if (_.isUndefined(query.taxonomy)) {
-				return;
-			}
+				// some taxonomies have special collections.
+				if ( collection === 'post_category' || collection === 'category' ) {
+					collection = 'Categories';
+				}
+				if ( collection === 'post_tag' ) {
+					collection = 'Tags';
+				}
 
-			var rest_base = query.taxonomy;
+				collection = wp.api.utils.capitalizeAndCamelCaseDashes( collection );
 
-			// check if this taxonomy has a different rest_base than the taxonomy name
-			if ( ! _.isUndefined( socket.wp.taxonomies[rest_base] ) && ! _.isEmpty( socket.wp.taxonomies[rest_base].rest_base ) ) {
-				rest_base = socket.wp.taxonomies[rest_base].rest_base;
-			}
+				if ( !_.isUndefined( wp.api.collections[collection] ) ) {
+					var wpTaxonomy = new wp.api.collections[collection];
 
-			var terms = [],
-				url = socket.wp_rest.root + 'wp/v2/' + rest_base + '?per_page=' + query.per_page;
+					var terms = [];
 
-			fetch(url)
-				.then((response) => {
-					return response.json()
-				})
-				.then((results) => {
-					{
-						Object.keys(results).map(function (i) {
-							var model = results[i];
+					wpTaxonomy.fetch().done(function (models) {
+						{
+							Object.keys(models).map(function (i) {
+								let model = models[i];
 
-							if (!_.isUndefined(model.id)) {
-								var pre = '';
+								if (!_.isUndefined(model.id)) {
+									var pre = '';
 
-								if ( model.parent > 0 ) {
-									pre = ' –– '
+									if (model.parent > 0) {
+										pre = ' –– '
+									}
+
+									terms.push({key: model.id, value: model.id.toString(), text: pre + model.name});
 								}
+							})
+						}
 
-								terms.push({key: model.id, value: model.id.toString(), text: pre + model.name});
-							}
-						})
-					}
-
-					component.setState({terms: terms, loading: false});
-				});
+						component.setState({terms: terms, loading: false});
+					});
+				}
+			}
 		});
 	}
 }

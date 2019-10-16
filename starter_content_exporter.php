@@ -145,7 +145,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				'items' => array(),
 			);
 
-			$post_types = get_post_types( array( 'show_in_rest' => true ), 'objects' );
+			$post_types = get_post_types( array( 'can_export' => true ), 'objects' );
 
 			foreach ( $post_types as $post_type => $post_type_config ) {
 
