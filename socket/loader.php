@@ -181,8 +181,8 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 				'config'    => $this->config,
 				'values'    => $this->values,
 				'wp' => array(
-					'taxonomies' => get_taxonomies( array( 'publicly_queryable' => true ), 'objects' ),
-					'post_types' =>get_post_types( array( 'can_export' => true ), 'objects' )
+					'taxonomies' => get_taxonomies( array( 'show_in_rest' => true ), 'objects' ),
+					'post_types' =>get_post_types( array( 'show_in_rest' => true ), 'objects' )
 				)
 			);
 
@@ -282,7 +282,7 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 		 * Helpers
 		 **/
 		function is_socket_dashboard() {
-			if ( ! empty( $_GET['page'] ) && $this->plugin === $_GET['page'] ) {
+			if ( is_admin() && ! empty( $_GET['page'] ) && $this->plugin === $_GET['page'] ) {
 				return true;
 			}
 
@@ -354,7 +354,7 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 
 			foreach ( $haystack as $v ) {
 				if ( is_array( $v ) ) {
-					$result = array_key_exists_r( $needle, $v );
+					$result = $this->array_key_exists_r( $needle, $v );
 				}
 				if ( $result ) {
 					return $result;
@@ -370,7 +370,7 @@ if ( ! class_exists( 'WP_Socket' ) ) {
  * Add the necessary filter to each post type
  **/
 function rest_api_filter_add_filters() {
-	$post_types = get_post_types( array( 'can_export' => true ), 'objects' );
+	$post_types = get_post_types( array( 'show_in_rest' => true ), 'objects' );
 
 	foreach ( $post_types as $name => $post_type ) {
 		add_filter( 'rest_' . $name. '_query', 'rest_api_filter_add_filter_param', 10, 2 );
