@@ -3,7 +3,7 @@
  * Plugin Name:       Starter Content Exporter
  * Plugin URI:        https://pixelgrade.com/
  * Description:       A plugin which exposes exportable data through the REST API.
- * Version:           0.8.0
+ * Version:           1.0.0
  * Author:            Pixelgrade, Vlad Olaru
  * Author URI:        https://pixelgrade.com/
  * License:           GPL-2.0+
@@ -106,6 +106,8 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				'plugin'   => 'starter_content_exporter',
 				'api_base' => 'sce/v1',
 			) );
+
+			require_once( plugin_dir_path( __FILE__ ) . 'safe-svg.php' );
 		}
 
 		/**
@@ -545,13 +547,6 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 					'data'    => array(),
 				) );
 			}
-
-			// Also allow the svg mime type.
-			add_filter( 'upload_mimes', function( $mimes ) {
-				$mimes['svg'] = 'image/svg+xml';
-
-				return $mimes;
-			}, 10, 1 );
 
 			$file_info = wp_check_filetype_and_ext( $file_path, $file_path );
 			if ( empty( $file_info['ext'] ) || empty( $file_info['type'] ) ) {

@@ -1,0 +1,15 @@
+{
+	"name": "pixelgrade/starter-content-exporter",
+	"description": "",
+	"type": "wordpress-plugin",
+	"license": "GPL-2.0-or-later",
+	"authors": [
+		{
+			"name": "Pixelgrade",
+			"homepage": "https://pixelgrade.com/"
+		}
+	],
+	"require": {
+		"php": "^5.6 || ^7.0"
+	}
+}
