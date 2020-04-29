@@ -696,17 +696,16 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			$mods = get_theme_mods();
 			$options = get_option('starter_content_exporter');
 
-			// some theme mods can be imported from the UI.
+
 			if ( ! empty( $options['ignored_post_theme_mods'] ) ) {
 				$this->ignored_theme_mods = array_merge( $this->ignored_theme_mods, $options['ignored_post_theme_mods'] );
 			}
-
 			// remove the ignored theme mods keys
 			$exported_mods = array_diff_key( $mods, array_flip( $this->ignored_theme_mods ) );
 
 			// Remove the ignored subtheme mods keys, that haven't already been removed.
 			if ( ! empty( $this->ignored_theme_mods ) ) {
-				// We will also treat ignored theme mods that target a specific suboptions, like 'rosa_options[something]'
+				// We will also treat ignored theme mods that target a specific suboption, like 'rosa_options[something]'
 				foreach ( $this->ignored_theme_mods as $ignored_theme_mod ) {
 					if ( false !== strpos( $ignored_theme_mod, '[') ) {
 						preg_match( '#(.+)\[(?:[\'\"]*)([^\'\"]+)(?:[\'\"]*)\]#', $ignored_theme_mod,$matches );
@@ -735,7 +734,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				foreach ( $options['exported_post_options'] as $option ) {
 					$option_value = get_option( $option, null );
 
-					// we need to check if the option key really exists and ignore the unexistent
+					// we need to check if the option key really exists and ignore the nonexistent
 					if ( $option_value !== null ) {
 						$returned_options['options'][$option] = $option_value;
 					}
