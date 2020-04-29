@@ -240,7 +240,7 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 			$option_name = sanitize_text_field( $_POST['name'] );
 
 			if ( ! isset( $_POST['value'] ) ) {
-				$this->values[ $option_name ] = null;
+				unset( $this->values[ $option_name ] );
 			} else {
 				$option_value = $_POST['value'];
 

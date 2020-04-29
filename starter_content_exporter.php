@@ -3,7 +3,7 @@
  * Plugin Name:       Starter Content Exporter
  * Plugin URI:        https://pixelgrade.com/
  * Description:       A plugin which exposes exportable data through the REST API.
- * Version:           1.0.0
+ * Version:           1.0.1
  * Author:            Pixelgrade, Vlad Olaru
  * Author URI:        https://pixelgrade.com/
  * License:           GPL-2.0+
