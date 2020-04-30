@@ -179,7 +179,7 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 				),
 				'admin_url' => admin_url(),
 				'config'    => $this->config,
-				'values'    => $this->values,
+				'values'    => $this->cleanup_values( $this->values ),
 				'wp' => array(
 					'taxonomies' => get_taxonomies( array( 'show_in_rest' => true ), 'objects' ),
 					'post_types' =>get_post_types( array( 'show_in_rest' => true ), 'objects' )
@@ -187,6 +187,26 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 			);
 
 			wp_localize_script( $script, 'socket', $localized_data );
+		}
+
+		function cleanup_values( $values ) {
+			if ( empty( $values ) ) {
+				return array();
+			}
+
+			if ( is_object( $values ) ) {
+				// This is a sure way to get multi-dimensional objects as array (converts deep).
+				$values = json_decode( json_encode( $values ), true );
+			}
+
+			foreach ( $values as $key => $value ) {
+				// We don't want null values.
+				if ( null === $value ) {
+					unset( $values[ $key ] );
+				}
+			}
+
+			return $values;
 		}
 
 		function add_rest_routes_api() {
