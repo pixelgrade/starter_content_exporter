@@ -48,10 +48,10 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 		/**
 		 * A list of options and theme mods which are supposed to be imported at the start
-		 * For example, some options like "which Jetpack modules should be enalbed" must be imported before we
+		 * For example, some options like "which Jetpack modules should be enabled" must be imported before we
 		 * even start to import posts or categories.
 		 *
-		 * The remaining theme mods(which aren't ignored) will be imported at the end of the process
+		 * The remaining theme mods (which aren't ignored) will be imported at the end of the process
 		 *
 		 * @var array
 		 */
