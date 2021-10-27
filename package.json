@@ -1,12 +1,11 @@
 {
 	"name": "starter_content_exporter",
 	"devDependencies": {
-		"del": "*",
-		"es6-promise": "*",
+		"del": "^6.0.0",
 		"gulp": "^4.0.2",
-		"gulp-exec": "^3.0.2",
-		"gulp-load-plugins": "^2.0.0",
-		"gulp-replace": "^1.0.0",
-		"gulp-rsync": "^0.0.8"
+		"gulp-exec": "^5.0.0",
+		"gulp-load-plugins": "^2.0.7",
+		"gulp-replace": "^1.1.3",
+		"gulp-rsync": "^0.0.9"
 	}
 }

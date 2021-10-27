@@ -6,8 +6,6 @@ var plugin = 'starter_content_exporter',
 	cp = require('child_process'),
 	del         = require('del');
 
-require('es6-promise').polyfill();
-
 var options = {
 	silent: true,
 	continueOnError: true // default: false
