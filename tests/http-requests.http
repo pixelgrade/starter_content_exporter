@@ -1,0 +1,44 @@
+GET https://themes.local/wp-json/sce/v2/mi-data
+Accept: application/json
+
+###
+
+GET https://themes.local/wp-json/sce/v2/data
+Accept: application/json
+
+###
+
+POST https://themes.local/wp-json/sce/v2/posts
+Accept: application/json
+Content-Type: application/json
+
+{
+	"include": [
+		1744,
+		1718,
+		285,
+		283,
+		126,
+		154
+	]
+}
+
+###
+
+POST https://themes.local/wp-json/sce/v2/posts
+Accept: application/json
+Content-Type: application/json
+
+{
+	"include": [
+		1744,
+		1718,
+		285,
+		283,
+		126,
+		154
+	],
+	"post_type": "page"
+}
+
+###
