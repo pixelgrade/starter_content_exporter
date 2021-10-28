@@ -1,20 +1,12 @@
 import React from "react"
-import ReactDOM from "react-dom"
 import PropTypes from 'prop-types'
-// import _ from 'lodash'
 
 import {
 	Dropdown,
 	Form
 } from 'semantic-ui-react'
 
-export default class SocketPostSelect extends React.Component {
-
-	static propTypes = {
-		name: PropTypes.string,
-		value: PropTypes.array,
-		setup_loading_flag: PropTypes.func
-	}
+class SocketPostSelect extends React.Component {
 
 	constructor(props) {
 		// this makes the this
@@ -45,10 +37,12 @@ export default class SocketPostSelect extends React.Component {
 		output = <Form.Field className="post_type_select" >
 			<Dropdown
 				placeholder={placeholder}
+				fluid
+				multiple
 				search
 				selection
-				closeOnBlur={false}
-				multiple={true}
+				closeOnBlur
+				closeOnEscape
 				loading={this.state.loading}
 				defaultValue={value}
 				options={this.state.posts}
@@ -145,3 +139,11 @@ export default class SocketPostSelect extends React.Component {
 		});
 	}
 }
+
+SocketPostSelect.propTypes = {
+	name: PropTypes.string,
+	value: PropTypes.array,
+	setup_loading_flag: PropTypes.func
+}
+
+export default SocketPostSelect;

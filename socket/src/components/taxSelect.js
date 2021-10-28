@@ -1,17 +1,11 @@
 import React from "react"
-import ReactDOM from "react-dom"
 import PropTypes from 'prop-types'
 import {
 	Dropdown,
 	Form
 } from 'semantic-ui-react'
 
-export default class SocketTaxSelect extends React.Component {
-	static propTypes = {
-		name: PropTypes.string,
-		value: PropTypes.array,
-		setup_loading_flag: PropTypes.func
-	}
+class SocketTaxSelect extends React.Component {
 
 	constructor(props) {
 		// this makes the this
@@ -42,10 +36,11 @@ export default class SocketTaxSelect extends React.Component {
 		output = <Form.Field className="post_type_select" >
 			<Dropdown
 				placeholder={placeholder}
+				fluid
 				search
 				selection
-				closeOnBlur={false}
-				multiple={true}
+				closeOnBlur
+				multiple
 				loading={this.state.loading}
 				defaultValue={value}
 				options={this.state.terms}
@@ -152,3 +147,11 @@ export default class SocketTaxSelect extends React.Component {
 		});
 	}
 }
+
+SocketTaxSelect.propTypes = {
+	name: PropTypes.string,
+	value: PropTypes.array,
+	setup_loading_flag: PropTypes.func
+}
+
+export default SocketTaxSelect;

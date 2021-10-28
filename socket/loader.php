@@ -2,8 +2,8 @@
 /**
  * Include this file in your plugin to autoload Socket
  *
+ * @since   Socket 1.0
  * @package Socket
- * @since Socket 1.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -33,7 +33,7 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 		public function __construct( $args ) {
 
 			if ( empty( $args['api_base'] ) || empty( $args['plugin'] ) ) {
-				return ;
+				return;
 			}
 
 			$this->plugin = $args['plugin'];
@@ -87,7 +87,7 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 
 		// Register a settings page
 		function add_admin_menu() {
-			$admin_page = add_submenu_page(
+			add_submenu_page(
 				'options-general.php',
 				$this->page_title,
 				$this->nav_label,
@@ -95,19 +95,19 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 				$this->plugin,
 				array(
 					$this,
-					'socket_options_page'
+					'socket_options_page',
 				)
 			);
 		}
 
 		function socket_options_page() {
 			$state = $this->get_option( 'state' ); ?>
-			<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.2.2/semantic.min.css"></link>
 			<div class="wrap">
 				<div class="socket-wrapper">
 					<header class="title">
 						<h1 class="page-title"><?php echo $this->page_title ?></h1>
-<!--						<div class="description">--><?php //echo $this->description ?><!--</div>-->
+						<!--						<div class="description">-->
+						<?php //echo $this->description ?><!--</div>-->
 					</header>
 					<div class="content">
 						<div id="socket_dashboard"></div>
@@ -135,10 +135,18 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 		 */
 		public function enqueue_styles() {
 			if ( $this->is_socket_dashboard() ) {
+				wp_register_style(
+					'semantic-ui',
+					plugin_dir_url( __FILE__ ) . 'css/semantic-ui/semantic.min.css',
+					array(),
+					filemtime( plugin_dir_path( __FILE__ ) . 'css/semantic-ui/semantic.min.css' ),
+					'all'
+				);
+
 				wp_enqueue_style(
 					'socket-dashboard',
 					plugin_dir_url( __FILE__ ) . 'css/socket.css',
-					array(),
+					array( 'semantic-ui' ),
 					filemtime( plugin_dir_path( __FILE__ ) . 'css/socket.css' ),
 					'all'
 				);
@@ -155,13 +163,18 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 
 				wp_enqueue_media();
 
-				wp_enqueue_script( 'socket-dashboard', plugin_dir_url( __FILE__ ) . 'js/socket.js', array(
-					'jquery',
-					'wp-util',
-					'wp-api',
-					'shortcode'
-				),
-					filemtime( plugin_dir_path( __FILE__ ) . 'js/socket.js' ), true );
+				wp_enqueue_script(
+					'socket-dashboard',
+					plugin_dir_url( __FILE__ ) . 'js/socket.js',
+					array(
+						'jquery',
+						'wp-util',
+						'wp-api',
+						'shortcode',
+					),
+					filemtime( plugin_dir_path( __FILE__ ) . 'js/socket.js' ),
+					true
+				);
 
 				$this->localize_js_data( 'socket-dashboard' );
 			}
@@ -175,15 +188,15 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 					'root'         => esc_url_raw( rest_url() ),
 					'api_base'     => $this->api_base,
 					'nonce'        => wp_create_nonce( 'wp_rest' ),
-					'socket_nonce' => wp_create_nonce( 'socket_rest' )
+					'socket_nonce' => wp_create_nonce( 'socket_rest' ),
 				),
 				'admin_url' => admin_url(),
 				'config'    => $this->config,
 				'values'    => $this->cleanup_values( $this->values ),
-				'wp' => array(
+				'wp'        => array(
 					'taxonomies' => get_taxonomies( array( 'show_in_rest' => true ), 'objects' ),
-					'post_types' =>get_post_types( array( 'show_in_rest' => true ), 'objects' )
-				)
+					'post_types' => get_post_types( array( 'show_in_rest' => true ), 'objects' ),
+				),
 			);
 
 			wp_localize_script( $script, 'socket', $localized_data );
@@ -216,13 +229,13 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 			register_rest_route( $this->api_base, '/option', array(
 				'methods'             => 'GET',
 				'callback'            => array( $this, 'rest_get_state' ),
-				'permission_callback' => array( $this, 'permission_nonce_callback' )
+				'permission_callback' => array( $this, 'permission_nonce_callback' ),
 			) );
 
 			register_rest_route( $this->api_base, '/option', array(
 				'methods'             => 'POST',
 				'callback'            => array( $this, 'rest_set_state' ),
-				'permission_callback' => array( $this, 'permission_nonce_callback' )
+				'permission_callback' => array( $this, 'permission_nonce_callback' ),
 			) );
 
 			// debug tools
@@ -266,9 +279,9 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 
 				// a little sanitize
 				if ( is_array( $option_value ) ) {
-//					$option_value = array_map( 'sanitize_text_field', $option_value );
+					//					$option_value = array_map( 'sanitize_text_field', $option_value );
 				} else {
-					$option_value = sanitize_text_field($option_value);
+					$option_value = sanitize_text_field( $option_value );
 				}
 				$this->values[ $option_name ] = $option_value;
 			}
@@ -294,7 +307,7 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 			wp_send_json_error( array(
 				$_POST['test1'],
 				$_POST['test2'],
-				$_POST['confirm']
+				$_POST['confirm'],
 			) );
 		}
 
@@ -322,11 +335,11 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 			return update_option( $this->plugin, $this->values );
 		}
 
-		function set_defaults( $array ) {
+		function set_defaults( $config ) {
 
-			if ( ! empty( $array ) ) {
+			if ( ! empty( $config ) ) {
 
-				foreach ( $array as $key => $value ) {
+				foreach ( $config as $key => $value ) {
 
 					if ( ! is_array( $value ) ) {
 						continue;
@@ -393,16 +406,18 @@ function rest_api_filter_add_filters() {
 	$post_types = get_post_types( array( 'show_in_rest' => true ), 'objects' );
 
 	foreach ( $post_types as $name => $post_type ) {
-		add_filter( 'rest_' . $name. '_query', 'rest_api_filter_add_filter_param', 10, 2 );
+		add_filter( 'rest_' . $name . '_query', 'rest_api_filter_add_filter_param', 10, 2 );
 	}
 }
+
 add_action( 'rest_api_init', 'rest_api_filter_add_filters', 11 );
 
 /**
  * Add the filter parameter
  *
- * @param  array           $args    The query arguments.
- * @param  WP_REST_Request $request Full details about the request.
+ * @param array           $args    The query arguments.
+ * @param WP_REST_Request $request Full details about the request.
+ *
  * @return array $args.
  **/
 function rest_api_filter_add_filter_param( $args, $request ) {
@@ -421,5 +436,6 @@ function rest_api_filter_add_filter_param( $args, $request ) {
 			$args[ $var ] = $filter[ $var ];
 		}
 	}
+
 	return $args;
 }

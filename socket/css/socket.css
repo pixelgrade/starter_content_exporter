@@ -1,3 +1,13 @@
 .title .page-title {
   padding: 20px 0;
   width: 100%; }
+
+#socket_dashboard {
+  float: left;
+  position: relative; }
+  #socket_dashboard .ui.top.attached.label + [class*="right floated"] + *, #socket_dashboard .ui.top.attached.label:first-child + :not(.attached) {
+    margin-top: 3rem !important; }
+  #socket_dashboard .ui.multiple.search.dropdown > input.search {
+    min-height: auto; }
+  #socket_dashboard .ui.hidden.divider {
+    display: block; }

@@ -1,5 +1,4 @@
 import React from "react"
-import ReactDOM from "react-dom"
 import PropTypes from 'prop-types'
 
 import {
@@ -9,17 +8,12 @@ import {
 	Icon,
 	Image,
 	Popup,
+	Placeholder,
 	Segment,
 	Grid
 } from 'semantic-ui-react'
 
-export default class SocketGallery extends React.Component {
-
-	propTypes: {
-		name: PropTypes.string,
-		value: PropTypes.string,
-		setup_loading_flag: PropTypes.func
-	}
+class SocketGallery extends React.Component {
 
 	constructor(props) {
 		// this makes the this
@@ -50,7 +44,7 @@ export default class SocketGallery extends React.Component {
 	}
 
 	render() {
-		var component = this,
+		let component = this,
 			output = null,
 			value = this.state.value,
 			placeholder = this.props.placeholder || 'Select';
@@ -63,21 +57,22 @@ export default class SocketGallery extends React.Component {
 			margin: '15px 15px 35px 15px'
 		}
 
-		var ids = value
+		let ids = value
 
 		output =
 			<div>
 				<Form.Field className="gallery">
 					<Grid onClick={component.handleOpen} style={{minHeight: 120, padding: '15px'}}>
 						{Object.keys(ids).map(function ( i ) {
-							var id = Number(ids[i]),
+							let id = Number(ids[i]),
 								attachment = wp.media.model.Attachment.get( id ),
 								url = '';
 
 							if ( typeof  attachment.attributes.sizes === "undefined" ) {
-								return <Grid.Column
-									key={id} >
-										<Header as='h3'>Select your images</Header>
+								return <Grid.Column key={id} style={square}>
+										<Placeholder fluid>
+											<Placeholder.Image square />
+										</Placeholder>
 									</Grid.Column>
 							}
 
@@ -103,7 +98,7 @@ export default class SocketGallery extends React.Component {
 
 				<Popup
 					trigger={<Button basic circular style={ { top: '0', position: 'absolute', right: '0', height: '32px', margin: '9px', padding: '6px', textIndent: '2px' } } onClick={this.clearGallery}>
-						<Button.Content visible style={{color: 'red'}} >
+						<Button.Content visible>
 							<Icon name='close' />
 						</Button.Content>
 					</Button>}
@@ -341,3 +336,11 @@ export default class SocketGallery extends React.Component {
 		return selection;
 	}
 }
+
+SocketGallery.propTypes = {
+	name: PropTypes.string,
+	value: PropTypes.string,
+	setup_loading_flag: PropTypes.func
+}
+
+export default SocketGallery;
