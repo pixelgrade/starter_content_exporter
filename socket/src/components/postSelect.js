@@ -5,6 +5,8 @@ import {
 	Dropdown,
 	Form
 } from 'semantic-ui-react'
+import isEmpty from 'lodash/isEmpty'
+import isUndefined from 'lodash/isUndefined'
 
 class SocketPostSelect extends React.Component {
 
@@ -17,20 +19,19 @@ class SocketPostSelect extends React.Component {
 			loading: true,
 			posts: [],
 			name: null,
-			value: this.props.value,
-			value_on_open: null
+			value: this.props.value
 		};
 
-		this.handleClose = this.handleClose.bind(this);
+		this.handleChange = this.handleChange.bind(this);
 	}
 
 	render() {
-		var component = this,
+		let component = this,
 			output = null,
 			value = this.props.value,
 			placeholder = this.props.placeholder || 'Select';
 
-		if ( _.isEmpty( value ) ) {
+		if ( isEmpty( value ) ) {
 			value = []
 		}
 
@@ -47,8 +48,6 @@ class SocketPostSelect extends React.Component {
 				defaultValue={value}
 				options={this.state.posts}
 				onChange={component.handleChange}
-				onClose={component.handleClose}
-				onOpen={component.handleOpen}
 			/>
 		</Form.Field>
 
@@ -56,21 +55,7 @@ class SocketPostSelect extends React.Component {
 	}
 
 	handleChange = (e, { value }) => {
-		this.setState({ value });
-	}
-
-	handleOpen = (e) => {
-		this.state.value_on_open = this.state.value;
-	}
-
-	// on close we want to save the data
-	handleClose(e){
-		let component = this,
-			value = this.state.value
-
-		if ( value === component.state.value_on_open ) {
-			return;
-		}
+		let component = this
 
 		component.props.setup_loading_flag( true )
 
@@ -86,13 +71,13 @@ class SocketPostSelect extends React.Component {
 				value: value
 			}
 		}).done(function (response) {
-			// let new_values = component.state.values;
-			console.log(response);
 			component.props.setup_loading_flag( false );
 		}).error(function (err) {
 			console.log(err);
 			component.props.setup_loading_flag( false );
 		});
+
+		this.setState({ value });
 	}
 
 	componentWillMount(){
@@ -104,11 +89,11 @@ class SocketPostSelect extends React.Component {
 
 		// load all the posts
 		wp.api.loadPromise.done( function() {
-			var wpPosts = new wp.api.collections.Posts(),
+			let wpPosts = new wp.api.collections.Posts(),
 				posts = [],
 				query = {};
 
-			if ( ! _.isUndefined( component.props.field.query ) ) {
+			if ( ! isUndefined( component.props.field.query ) ) {
 				query = { ...query, ...component.props.field.query };
 			}
 
@@ -127,7 +112,7 @@ class SocketPostSelect extends React.Component {
 							pre = ' –– '
 						}
 
-						if ( _.isEmpty( model.title.rendered ) ) {
+						if ( isEmpty( model.title.rendered ) ) {
 							title = pre + '<No title!>'
 						}
 

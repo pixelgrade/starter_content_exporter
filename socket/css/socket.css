@@ -11,3 +11,7 @@
     min-height: auto; }
   #socket_dashboard .ui.hidden.divider {
     display: block; }
+  #socket_dashboard .field.gallery .ui.grid:hover {
+    cursor: pointer; }
+  #socket_dashboard .field.gallery .ui.grid .ui.disabled.image:hover, #socket_dashboard .field.gallery .ui.grid .ui.disabled.images:hover {
+    cursor: pointer; }

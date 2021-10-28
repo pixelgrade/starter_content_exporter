@@ -72460,6 +72460,10 @@ var _propTypes = _interopRequireDefault(require("prop-types"));
 
 var _semanticUiReact = require("semantic-ui-react");
 
+var _isEmpty = _interopRequireDefault(require("lodash/isEmpty"));
+
+var _isUndefined = _interopRequireDefault(require("lodash/isUndefined"));
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -72523,7 +72527,7 @@ var SocketGallery = /*#__PURE__*/function (_React$Component) {
       attachments: []
     };
 
-    if (_.isEmpty(_this.props.value)) {
+    if ((0, _isEmpty.default)(_this.props.value)) {
       _this.state.value = [];
     } else {
       _this.state.value = _this.props.value.split(',').map(function (t) {
@@ -72565,7 +72569,11 @@ var SocketGallery = /*#__PURE__*/function (_React$Component) {
           minHeight: 120,
           padding: '15px'
         }
-      }, Object.keys(ids).map(function (i) {
+      }, (0, _isEmpty.default)(ids) ? /*#__PURE__*/_react.default.createElement(_semanticUiReact.Grid.Column, null, /*#__PURE__*/_react.default.createElement(_semanticUiReact.Image, {
+        disabled: true,
+        src: "https://react.semantic-ui.com/images/wireframe/white-image.png",
+        size: "small"
+      })) : '', Object.keys(ids).map(function (i) {
         var id = Number(ids[i]),
             attachment = wp.media.model.Attachment.get(id),
             url = '';
@@ -72581,7 +72589,7 @@ var SocketGallery = /*#__PURE__*/function (_React$Component) {
           })));
         }
 
-        if (_.isUndefined(attachment.attributes.sizes.thumbnail)) {
+        if ((0, _isUndefined.default)(attachment.attributes.sizes.thumbnail)) {
           url = attachment.attributes.sizes.full.url;
         } else {
           url = attachment.attributes.sizes.thumbnail.url;
@@ -72651,8 +72659,6 @@ var SocketGallery = /*#__PURE__*/function (_React$Component) {
             value: component.state.value.join(',')
           }
         }).done(function (response) {
-          // let new_values = component.state.values;
-          console.log(response);
           component.props.setup_loading_flag(false);
         }).error(function (err) {
           console.log(err);
@@ -72678,8 +72684,6 @@ var SocketGallery = /*#__PURE__*/function (_React$Component) {
             value: component.state.value.join(',')
           }
         }).done(function (response) {
-          // let new_values = component.state.values;
-          console.log(response);
           component.props.setup_loading_flag(false);
         }).error(function (err) {
           console.log(err);
@@ -72692,7 +72696,7 @@ var SocketGallery = /*#__PURE__*/function (_React$Component) {
     value: function componentWillMount() {
       var component = this;
 
-      if (_.isEmpty(component.state.attachments) && !_.isEmpty(component.state.value)) {
+      if ((0, _isEmpty.default)(component.state.attachments) && !(0, _isEmpty.default)(component.state.value)) {
         var attachments = [];
         var res = component.getSelection(component.state.value.join(',')); // },500);
         // just wait a sec
@@ -72766,7 +72770,7 @@ var SocketGallery = /*#__PURE__*/function (_React$Component) {
               attachments,
               selection;
 
-          if (!_.isEmpty(component.state.value)) {
+          if (!(0, _isEmpty.default)(component.state.value)) {
             shortcode = wp.shortcode.next('gallery', '[gallery ids="' + component.state.value + '"]');
           } // Bail if we didn't match the shortcode or all of the content.
 
@@ -72802,7 +72806,7 @@ var SocketGallery = /*#__PURE__*/function (_React$Component) {
           attachments,
           selection;
 
-      if (!_.isEmpty(component.state.value)) {
+      if (!(0, _isEmpty.default)(component.state.value)) {
         shortcode = wp.shortcode.next('gallery', '[gallery ids="' + component.state.value + '"]');
       } // Bail if we didn't match the shortcode or all of the content.
 
@@ -72844,7 +72848,7 @@ SocketGallery.propTypes = {
 var _default = SocketGallery;
 exports.default = _default;
 
-},{"core-js/modules/es.array.join.js":160,"core-js/modules/es.array.map.js":161,"core-js/modules/es.function.name.js":163,"core-js/modules/es.number.constructor.js":164,"core-js/modules/es.object.get-prototype-of.js":167,"core-js/modules/es.object.keys.js":168,"core-js/modules/es.object.set-prototype-of.js":169,"core-js/modules/es.reflect.construct.js":172,"core-js/modules/es.regexp.exec.js":173,"core-js/modules/es.string.split.js":175,"core-js/modules/web.url.to-json.js":180,"prop-types":488,"react":505,"semantic-ui-react":627}],764:[function(require,module,exports){
+},{"core-js/modules/es.array.join.js":160,"core-js/modules/es.array.map.js":161,"core-js/modules/es.function.name.js":163,"core-js/modules/es.number.constructor.js":164,"core-js/modules/es.object.get-prototype-of.js":167,"core-js/modules/es.object.keys.js":168,"core-js/modules/es.object.set-prototype-of.js":169,"core-js/modules/es.reflect.construct.js":172,"core-js/modules/es.regexp.exec.js":173,"core-js/modules/es.string.split.js":175,"core-js/modules/web.url.to-json.js":180,"lodash/isEmpty":429,"lodash/isUndefined":441,"prop-types":488,"react":505,"semantic-ui-react":627}],764:[function(require,module,exports){
 "use strict";
 
 require("core-js/modules/es.object.set-prototype-of.js");
@@ -72883,6 +72887,10 @@ var _react = _interopRequireDefault(require("react"));
 var _propTypes = _interopRequireDefault(require("prop-types"));
 
 var _semanticUiReact = require("semantic-ui-react");
+
+var _isEmpty = _interopRequireDefault(require("lodash/isEmpty"));
+
+var _isUndefined = _interopRequireDefault(require("lodash/isUndefined"));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -72928,23 +72936,39 @@ var SocketPostSelect = /*#__PURE__*/function (_React$Component) {
     _defineProperty(_assertThisInitialized(_this), "handleChange", function (e, _ref) {
       var value = _ref.value;
 
+      var component = _assertThisInitialized(_this);
+
+      component.props.setup_loading_flag(true);
+      jQuery.ajax({
+        url: socket.wp_rest.root + socket.wp_rest.api_base + '/option',
+        method: 'POST',
+        beforeSend: function beforeSend(xhr) {
+          xhr.setRequestHeader('X-WP-Nonce', socket.wp_rest.nonce);
+        },
+        data: {
+          'socket_nonce': socket.wp_rest.socket_nonce,
+          name: _this.props.name,
+          value: value
+        }
+      }).done(function (response) {
+        component.props.setup_loading_flag(false);
+      }).error(function (err) {
+        console.log(err);
+        component.props.setup_loading_flag(false);
+      });
+
       _this.setState({
         value: value
       });
-    });
-
-    _defineProperty(_assertThisInitialized(_this), "handleOpen", function (e) {
-      _this.state.value_on_open = _this.state.value;
     });
 
     _this.state = {
       loading: true,
       posts: [],
       name: null,
-      value: _this.props.value,
-      value_on_open: null
+      value: _this.props.value
     };
-    _this.handleClose = _this.handleClose.bind(_assertThisInitialized(_this));
+    _this.handleChange = _this.handleChange.bind(_assertThisInitialized(_this));
     return _this;
   }
 
@@ -72956,7 +72980,7 @@ var SocketPostSelect = /*#__PURE__*/function (_React$Component) {
           value = this.props.value,
           placeholder = this.props.placeholder || 'Select';
 
-      if (_.isEmpty(value)) {
+      if ((0, _isEmpty.default)(value)) {
         value = [];
       }
 
@@ -72973,43 +72997,9 @@ var SocketPostSelect = /*#__PURE__*/function (_React$Component) {
         loading: this.state.loading,
         defaultValue: value,
         options: this.state.posts,
-        onChange: component.handleChange,
-        onClose: component.handleClose,
-        onOpen: component.handleOpen
+        onChange: component.handleChange
       }));
       return output;
-    }
-  }, {
-    key: "handleClose",
-    value: // on close we want to save the data
-    function handleClose(e) {
-      var component = this,
-          value = this.state.value;
-
-      if (value === component.state.value_on_open) {
-        return;
-      }
-
-      component.props.setup_loading_flag(true);
-      jQuery.ajax({
-        url: socket.wp_rest.root + socket.wp_rest.api_base + '/option',
-        method: 'POST',
-        beforeSend: function beforeSend(xhr) {
-          xhr.setRequestHeader('X-WP-Nonce', socket.wp_rest.nonce);
-        },
-        data: {
-          'socket_nonce': socket.wp_rest.socket_nonce,
-          name: this.props.name,
-          value: value
-        }
-      }).done(function (response) {
-        // let new_values = component.state.values;
-        console.log(response);
-        component.props.setup_loading_flag(false);
-      }).error(function (err) {
-        console.log(err);
-        component.props.setup_loading_flag(false);
-      });
     }
   }, {
     key: "componentWillMount",
@@ -73025,7 +73015,7 @@ var SocketPostSelect = /*#__PURE__*/function (_React$Component) {
             posts = [],
             query = {};
 
-        if (!_.isUndefined(component.props.field.query)) {
+        if (!(0, _isUndefined.default)(component.props.field.query)) {
           query = _objectSpread(_objectSpread({}, query), component.props.field.query);
         }
 
@@ -73045,7 +73035,7 @@ var SocketPostSelect = /*#__PURE__*/function (_React$Component) {
                 pre = ' –– ';
               }
 
-              if (_.isEmpty(model.title.rendered)) {
+              if ((0, _isEmpty.default)(model.title.rendered)) {
                 title = pre + '<No title!>';
               }
 
@@ -73076,7 +73066,7 @@ SocketPostSelect.propTypes = {
 var _default = SocketPostSelect;
 exports.default = _default;
 
-},{"core-js/modules/es.array.filter.js":158,"core-js/modules/es.array.map.js":161,"core-js/modules/es.function.name.js":163,"core-js/modules/es.object.get-own-property-descriptor.js":165,"core-js/modules/es.object.get-own-property-descriptors.js":166,"core-js/modules/es.object.get-prototype-of.js":167,"core-js/modules/es.object.keys.js":168,"core-js/modules/es.object.set-prototype-of.js":169,"core-js/modules/es.object.to-string.js":170,"core-js/modules/es.reflect.construct.js":172,"core-js/modules/es.regexp.to-string.js":174,"core-js/modules/es.symbol.js":177,"core-js/modules/web.dom-collections.for-each.js":178,"prop-types":488,"react":505,"semantic-ui-react":627}],765:[function(require,module,exports){
+},{"core-js/modules/es.array.filter.js":158,"core-js/modules/es.array.map.js":161,"core-js/modules/es.function.name.js":163,"core-js/modules/es.object.get-own-property-descriptor.js":165,"core-js/modules/es.object.get-own-property-descriptors.js":166,"core-js/modules/es.object.get-prototype-of.js":167,"core-js/modules/es.object.keys.js":168,"core-js/modules/es.object.set-prototype-of.js":169,"core-js/modules/es.object.to-string.js":170,"core-js/modules/es.reflect.construct.js":172,"core-js/modules/es.regexp.to-string.js":174,"core-js/modules/es.symbol.js":177,"core-js/modules/web.dom-collections.for-each.js":178,"lodash/isEmpty":429,"lodash/isUndefined":441,"prop-types":488,"react":505,"semantic-ui-react":627}],765:[function(require,module,exports){
 "use strict";
 
 require("core-js/modules/es.object.set-prototype-of.js");
@@ -73117,6 +73107,10 @@ var _react = _interopRequireDefault(require("react"));
 var _propTypes = _interopRequireDefault(require("prop-types"));
 
 var _semanticUiReact = require("semantic-ui-react");
+
+var _isEmpty = _interopRequireDefault(require("lodash/isEmpty"));
+
+var _isUndefined = _interopRequireDefault(require("lodash/isUndefined"));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -73162,23 +73156,39 @@ var SocketTaxSelect = /*#__PURE__*/function (_React$Component) {
     _defineProperty(_assertThisInitialized(_this), "handleChange", function (e, _ref) {
       var value = _ref.value;
 
+      var component = _assertThisInitialized(_this);
+
+      component.props.setup_loading_flag(true);
+      jQuery.ajax({
+        url: socket.wp_rest.root + socket.wp_rest.api_base + '/option',
+        method: 'POST',
+        beforeSend: function beforeSend(xhr) {
+          xhr.setRequestHeader('X-WP-Nonce', socket.wp_rest.nonce);
+        },
+        data: {
+          'socket_nonce': socket.wp_rest.socket_nonce,
+          name: _this.props.name,
+          value: value
+        }
+      }).done(function (response) {
+        component.props.setup_loading_flag(false);
+      }).error(function (err) {
+        console.log(err);
+        component.props.setup_loading_flag(false);
+      });
+
       _this.setState({
         value: value
       });
-    });
-
-    _defineProperty(_assertThisInitialized(_this), "handleOpen", function (e) {
-      _this.state.value_on_open = _this.state.value;
     });
 
     _this.state = {
       loading: true,
       terms: [],
       name: null,
-      value: _this.props.value,
-      value_on_open: null
+      value: _this.props.value
     };
-    _this.handleClose = _this.handleClose.bind(_assertThisInitialized(_this));
+    _this.handleChange = _this.handleChange.bind(_assertThisInitialized(_this));
     return _this;
   }
 
@@ -73190,7 +73200,7 @@ var SocketTaxSelect = /*#__PURE__*/function (_React$Component) {
           value = this.props.value,
           placeholder = this.props.placeholder || 'Select';
 
-      if (_.isEmpty(value)) {
+      if ((0, _isEmpty.default)(value)) {
         value = [];
       }
 
@@ -73201,48 +73211,15 @@ var SocketTaxSelect = /*#__PURE__*/function (_React$Component) {
         fluid: true,
         search: true,
         selection: true,
-        closeOnBlur: true,
         multiple: true,
+        closeOnBlur: true,
+        closeOnEscape: true,
         loading: this.state.loading,
         defaultValue: value,
         options: this.state.terms,
-        onChange: component.handleChange,
-        onClose: component.handleClose,
-        onOpen: component.handleOpen
+        onChange: component.handleChange
       }));
       return output;
-    }
-  }, {
-    key: "handleClose",
-    value: // on close we want to save the data
-    function handleClose(e) {
-      var component = this,
-          value = this.state.value;
-
-      if (value === component.state.value_on_open) {
-        return;
-      }
-
-      component.props.setup_loading_flag(true);
-      jQuery.ajax({
-        url: socket.wp_rest.root + socket.wp_rest.api_base + '/option',
-        method: 'POST',
-        beforeSend: function beforeSend(xhr) {
-          xhr.setRequestHeader('X-WP-Nonce', socket.wp_rest.nonce);
-        },
-        data: {
-          'socket_nonce': socket.wp_rest.socket_nonce,
-          name: this.props.name,
-          value: value
-        }
-      }).done(function (response) {
-        // let new_values = component.state.values;
-        console.log(response);
-        component.props.setup_loading_flag(false);
-      }).error(function (err) {
-        console.log(err);
-        component.props.setup_loading_flag(false);
-      });
     }
   }, {
     key: "componentWillMount",
@@ -73258,17 +73235,17 @@ var SocketTaxSelect = /*#__PURE__*/function (_React$Component) {
           taxonomy: 'categories'
         };
 
-        if (!_.isUndefined(component.props.field.query)) {
+        if (!(0, _isUndefined.default)(component.props.field.query)) {
           query = _objectSpread(_objectSpread({}, query), component.props.field.query);
         }
 
-        if (_.isUndefined(query.taxonomy)) {
+        if ((0, _isUndefined.default)(query.taxonomy)) {
           return;
         }
 
         var rest_base = query.taxonomy; // check if this taxonomy has a different rest_base than the taxonomy name
 
-        if (!_.isUndefined(socket.wp.taxonomies[rest_base]) && !_.isEmpty(socket.wp.taxonomies[rest_base].rest_base)) {
+        if (!(0, _isUndefined.default)(socket.wp.taxonomies[rest_base]) && !(0, _isEmpty.default)(socket.wp.taxonomies[rest_base].rest_base)) {
           rest_base = socket.wp.taxonomies[rest_base].rest_base;
         }
 
@@ -73281,7 +73258,7 @@ var SocketTaxSelect = /*#__PURE__*/function (_React$Component) {
             Object.keys(results).map(function (i) {
               var model = results[i];
 
-              if (!_.isUndefined(model.id)) {
+              if (!(0, _isUndefined.default)(model.id)) {
                 var pre = '';
 
                 if (model.parent > 0) {
@@ -73316,7 +73293,7 @@ SocketTaxSelect.propTypes = {
 var _default = SocketTaxSelect;
 exports.default = _default;
 
-},{"core-js/modules/es.array.filter.js":158,"core-js/modules/es.array.map.js":161,"core-js/modules/es.function.name.js":163,"core-js/modules/es.object.get-own-property-descriptor.js":165,"core-js/modules/es.object.get-own-property-descriptors.js":166,"core-js/modules/es.object.get-prototype-of.js":167,"core-js/modules/es.object.keys.js":168,"core-js/modules/es.object.set-prototype-of.js":169,"core-js/modules/es.object.to-string.js":170,"core-js/modules/es.promise.js":171,"core-js/modules/es.reflect.construct.js":172,"core-js/modules/es.regexp.to-string.js":174,"core-js/modules/es.symbol.js":177,"core-js/modules/web.dom-collections.for-each.js":178,"prop-types":488,"react":505,"semantic-ui-react":627}],766:[function(require,module,exports){
+},{"core-js/modules/es.array.filter.js":158,"core-js/modules/es.array.map.js":161,"core-js/modules/es.function.name.js":163,"core-js/modules/es.object.get-own-property-descriptor.js":165,"core-js/modules/es.object.get-own-property-descriptors.js":166,"core-js/modules/es.object.get-prototype-of.js":167,"core-js/modules/es.object.keys.js":168,"core-js/modules/es.object.set-prototype-of.js":169,"core-js/modules/es.object.to-string.js":170,"core-js/modules/es.promise.js":171,"core-js/modules/es.reflect.construct.js":172,"core-js/modules/es.regexp.to-string.js":174,"core-js/modules/es.symbol.js":177,"core-js/modules/web.dom-collections.for-each.js":178,"lodash/isEmpty":429,"lodash/isUndefined":441,"prop-types":488,"react":505,"semantic-ui-react":627}],766:[function(require,module,exports){
 "use strict";
 
 var _react = _interopRequireDefault(require("react"));

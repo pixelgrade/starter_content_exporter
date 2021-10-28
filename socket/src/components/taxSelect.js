@@ -4,6 +4,8 @@ import {
 	Dropdown,
 	Form
 } from 'semantic-ui-react'
+import isEmpty from 'lodash/isEmpty'
+import isUndefined from 'lodash/isUndefined'
 
 class SocketTaxSelect extends React.Component {
 
@@ -16,20 +18,19 @@ class SocketTaxSelect extends React.Component {
 			loading: true,
 			terms: [],
 			name: null,
-			value: this.props.value,
-			value_on_open: null
+			value: this.props.value
 		};
 
-		this.handleClose = this.handleClose.bind(this);
+		this.handleChange = this.handleChange.bind(this);
 	}
 
 	render() {
-		var component = this,
+		let component = this,
 			output = null,
 			value = this.props.value,
 			placeholder = this.props.placeholder || 'Select';
 
-		if ( _.isEmpty( value ) ) {
+		if ( isEmpty( value ) ) {
 			value = []
 		}
 
@@ -39,14 +40,13 @@ class SocketTaxSelect extends React.Component {
 				fluid
 				search
 				selection
-				closeOnBlur
 				multiple
+				closeOnBlur
+				closeOnEscape
 				loading={this.state.loading}
 				defaultValue={value}
 				options={this.state.terms}
 				onChange={component.handleChange}
-				onClose={component.handleClose}
-				onOpen={component.handleOpen}
 			/>
 		</Form.Field>
 
@@ -54,21 +54,7 @@ class SocketTaxSelect extends React.Component {
 	}
 
 	handleChange = (e, { value }) => {
-		this.setState({ value });
-	}
-
-	handleOpen = (e) => {
-		this.state.value_on_open = this.state.value;
-	}
-
-	// on close we want to save the data
-	handleClose(e){
-		let component = this,
-			value = this.state.value
-
-		if ( value === component.state.value_on_open ) {
-			return;
-		}
+		let component = this
 
 		component.props.setup_loading_flag( true )
 
@@ -84,13 +70,13 @@ class SocketTaxSelect extends React.Component {
 				value: value
 			}
 		}).done(function (response) {
-			// let new_values = component.state.values;
-			console.log(response);
 			component.props.setup_loading_flag( false );
 		}).error(function (err) {
 			console.log(err);
 			component.props.setup_loading_flag( false );
 		});
+
+		this.setState({ value });
 	}
 
 	componentWillMount(){
@@ -101,24 +87,24 @@ class SocketTaxSelect extends React.Component {
 		let component = this
 
 		wp.api.loadPromise.done( function() {
-			var query = {per_page: 100, taxonomy: 'categories'};
+			let query = {per_page: 100, taxonomy: 'categories'};
 
-			if (!_.isUndefined(component.props.field.query)) {
+			if (!isUndefined(component.props.field.query)) {
 				query = {...query, ...component.props.field.query};
 			}
 
-			if (_.isUndefined(query.taxonomy)) {
+			if (isUndefined(query.taxonomy)) {
 				return;
 			}
 
-			var rest_base = query.taxonomy;
+			let rest_base = query.taxonomy;
 
 			// check if this taxonomy has a different rest_base than the taxonomy name
-			if ( ! _.isUndefined( socket.wp.taxonomies[rest_base] ) && ! _.isEmpty( socket.wp.taxonomies[rest_base].rest_base ) ) {
+			if ( ! isUndefined( socket.wp.taxonomies[rest_base] ) && ! isEmpty( socket.wp.taxonomies[rest_base].rest_base ) ) {
 				rest_base = socket.wp.taxonomies[rest_base].rest_base;
 			}
 
-			var terms = [],
+			let terms = [],
 				url = socket.wp_rest.root + 'wp/v2/' + rest_base + '?per_page=' + query.per_page;
 
 			fetch(url)
@@ -128,10 +114,10 @@ class SocketTaxSelect extends React.Component {
 				.then((results) => {
 					{
 						Object.keys(results).map(function (i) {
-							var model = results[i];
+							let model = results[i];
 
-							if (!_.isUndefined(model.id)) {
-								var pre = '';
+							if (!isUndefined(model.id)) {
+								let pre = '';
 
 								if ( model.parent > 0 ) {
 									pre = ' –– '

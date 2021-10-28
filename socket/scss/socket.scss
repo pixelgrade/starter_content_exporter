@@ -19,4 +19,16 @@
   .ui.hidden.divider {
     display: block;
   }
+
+  .field.gallery .ui.grid {
+    &:hover {
+      cursor: pointer;
+    }
+
+    .ui.disabled.image, .ui.disabled.images {
+      &:hover {
+        cursor: pointer;
+      }
+    }
+  }
 }

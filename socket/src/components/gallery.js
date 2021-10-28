@@ -12,6 +12,8 @@ import {
 	Segment,
 	Grid
 } from 'semantic-ui-react'
+import isEmpty from 'lodash/isEmpty'
+import isUndefined from 'lodash/isUndefined'
 
 class SocketGallery extends React.Component {
 
@@ -28,7 +30,7 @@ class SocketGallery extends React.Component {
 			attachments: []
 		};
 
-		if ( _.isEmpty( this.props.value ) ) {
+		if ( isEmpty( this.props.value ) ) {
 			this.state.value = []
 		} else {
 			this.state.value = this.props.value.split(',').map(function(t){return parseInt(t)})
@@ -63,6 +65,14 @@ class SocketGallery extends React.Component {
 			<div>
 				<Form.Field className="gallery">
 					<Grid onClick={component.handleOpen} style={{minHeight: 120, padding: '15px'}}>
+						{isEmpty(ids)
+							?
+							<Grid.Column>
+								<Image disabled src='https://react.semantic-ui.com/images/wireframe/white-image.png' size='small' />
+							</Grid.Column>
+							:
+							''
+						}
 						{Object.keys(ids).map(function ( i ) {
 							let id = Number(ids[i]),
 								attachment = wp.media.model.Attachment.get( id ),
@@ -76,7 +86,7 @@ class SocketGallery extends React.Component {
 									</Grid.Column>
 							}
 
-							if ( _.isUndefined( attachment.attributes.sizes.thumbnail ) ) {
+							if ( isUndefined( attachment.attributes.sizes.thumbnail ) ) {
 								url = attachment.attributes.sizes.full.url;
 							} else {
 								url = attachment.attributes.sizes.thumbnail.url;
@@ -131,8 +141,6 @@ class SocketGallery extends React.Component {
 					value: component.state.value.join(',')
 				}
 			}).done(function (response) {
-				// let new_values = component.state.values;
-				console.log(response);
 				component.props.setup_loading_flag( false );
 			}).error(function (err) {
 				console.log(err);
@@ -177,8 +185,6 @@ class SocketGallery extends React.Component {
 					value: component.state.value.join(',')
 				}
 			}).done(function (response) {
-				// let new_values = component.state.values;
-				console.log(response);
 				component.props.setup_loading_flag( false );
 			}).error(function (err) {
 				console.log(err);
@@ -188,9 +194,9 @@ class SocketGallery extends React.Component {
 	}
 
 	componentWillMount() {
-		var component = this;
+		let component = this;
 
-		if ( _.isEmpty( component.state.attachments ) && ! _.isEmpty( component.state.value ) ) {
+		if ( isEmpty( component.state.attachments ) && ! isEmpty( component.state.value ) ) {
 			var attachments = [];
 			var res = component.getSelection( component.state.value.join(',') );
 			// },500);
@@ -204,13 +210,13 @@ class SocketGallery extends React.Component {
 	}
 
 	init_media_modal() {
-		var component = this;
+		let component = this;
 
 		wp.media.socketgallery[component.props.name] = {
 			frame: function () {
 				if (this._frame) return this._frame;
 
-				var selection = this.select();
+				let selection = this.select();
 
 				this._frame = wp.media({
 					className: 'media-frame no-sidebar',
@@ -250,7 +256,7 @@ class SocketGallery extends React.Component {
 			},
 
 			update: function () {
-				var settings = wp.media.view.settings,
+				let settings = wp.media.view.settings,
 					controller = wp.media.socketgallery[component.props.name]._frame.states.get('gallery-edit'),
 					library = controller.get('library'),
 					$return = [],
@@ -264,10 +270,10 @@ class SocketGallery extends React.Component {
 			// Gets initial gallery-edit images. Function modified from wp.media.gallery.edit
 			// in wp-includes/js/media-editor.js.source.html
 			select: function () {
-				var shortcode = wp.shortcode.next('gallery', '[gallery ids="1"'),
+				let shortcode = wp.shortcode.next('gallery', '[gallery ids="1"'),
 					attachments, selection;
 
-				if ( ! _.isEmpty( component.state.value ) ) {
+				if ( ! isEmpty( component.state.value ) ) {
 					shortcode = wp.shortcode.next('gallery', '[gallery ids="' + component.state.value + '"]')
 				}
 
@@ -300,11 +306,11 @@ class SocketGallery extends React.Component {
 	}
 
 	getSelection ( idsString ) {
-		var component = this,
+		let component = this,
 			shortcode = wp.shortcode.next('gallery', '[gallery ids="1"]'),
 			attachments, selection;
 
-		if ( ! _.isEmpty( component.state.value ) ) {
+		if ( ! isEmpty( component.state.value ) ) {
 			shortcode = wp.shortcode.next('gallery', '[gallery ids="' + component.state.value + '"]')
 		}
 
