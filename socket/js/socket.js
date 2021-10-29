@@ -72280,11 +72280,11 @@ var SocketDashboard = /*#__PURE__*/function (_React$Component) {
 
       var component = _assertThisInitialized(_this),
           componentNode = _reactDom.default.findDOMNode(e.target),
-          name = null; // try to get the field name
+          name = null; // Try to get the field name.
 
 
       if (typeof e.target.parentNode.dataset.field_key !== 'undefined') {
-        name = e.target.parentNode.dataset.field_key; // in case this is a tag removal, the field is on the ancestor
+        name = e.target.parentNode.dataset.field_key; // In case this is a tag removal, the field is on the ancestor.
       } else if (typeof e.target.parentNode.parentNode.dataset.field_key !== 'undefined') {
         name = e.target.parentNode.parentNode.dataset.field_key;
       } else {
@@ -72324,10 +72324,13 @@ var SocketDashboard = /*#__PURE__*/function (_React$Component) {
               });
             } else {
               console.log(response);
+              alert('There\'s been an error when trying to save! Check the console for details.');
             }
           }).error(function (err) {
+            alert('There\'s been an error when trying to save! Check the console for details.');
+            console.log(err);
             component.setState({
-              loading: true
+              loading: false
             });
           });
         });
@@ -72394,7 +72397,7 @@ var SocketDashboard = /*#__PURE__*/function (_React$Component) {
     _this.tagsHandleAddition = _this.tagsHandleAddition.bind(_assertThisInitialized(_this));
     _this.multicheckboxHandleChange = _this.multicheckboxHandleChange.bind(_assertThisInitialized(_this));
     _this.clean_the_house = _this.clean_the_house.bind(_assertThisInitialized(_this));
-    _this.setup_loading_flag = _this.setup_loading_flag.bind(_assertThisInitialized(_this));
+    _this.setupLoadingFlag = _this.setupLoadingFlag.bind(_assertThisInitialized(_this));
     return _this;
   }
 
@@ -72648,21 +72651,21 @@ var SocketDashboard = /*#__PURE__*/function (_React$Component) {
 
         case 'tags':
           {
-            var dropDownOptions = [];
+            var _dropdownOptions = [];
             var defaultValues = [];
 
-            if (value !== '') {
-              {
-                Object.keys(value).map(function (key) {
-                  var option = value[key];
-                  dropDownOptions.push({
-                    key: option,
-                    value: option,
-                    text: option
-                  });
-                  defaultValues.push(option);
+            if (!(0, _isEmpty.default)(value)) {
+              Object.keys(value).map(function (key) {
+                var option = value[key];
+
+                _dropdownOptions.push({
+                  key: option,
+                  value: option,
+                  text: option
                 });
-              }
+
+                defaultValues.push(option);
+              });
             }
 
             output = /*#__PURE__*/_react.default.createElement(_semanticUiReact.Form.Field, null, /*#__PURE__*/_react.default.createElement(_semanticUiReact.Dropdown, {
@@ -72672,7 +72675,7 @@ var SocketDashboard = /*#__PURE__*/function (_React$Component) {
               allowAdditions: true,
               selection: true,
               multiple: true,
-              options: dropDownOptions,
+              options: _dropdownOptions,
               value: defaultValues,
               onChange: component.tagsHandleAddition
             }));
@@ -72681,7 +72684,7 @@ var SocketDashboard = /*#__PURE__*/function (_React$Component) {
 
         case 'post_select':
           {
-            if ('' === value) {
+            if ((0, _isEmpty.default)(value)) {
               value = [];
             }
 
@@ -72691,7 +72694,7 @@ var SocketDashboard = /*#__PURE__*/function (_React$Component) {
               value: value,
               field: fieldConfig,
               placeholder: placeholder,
-              setup_loading_flag: component.setup_loading_flag
+              setupLoadingFlag: component.setupLoadingFlag
             });
             break;
           }
@@ -72707,7 +72710,7 @@ var SocketDashboard = /*#__PURE__*/function (_React$Component) {
               value: value,
               field: fieldConfig,
               placeholder: placeholder,
-              setup_loading_flag: component.setup_loading_flag
+              setupLoadingFlag: component.setupLoadingFlag
             });
             break;
           }
@@ -72732,7 +72735,7 @@ var SocketDashboard = /*#__PURE__*/function (_React$Component) {
               value: value,
               field: fieldConfig,
               placeholder: placeholder,
-              setup_loading_flag: component.setup_loading_flag
+              setupLoadingFlag: component.setupLoadingFlag
             });
             break;
           }
@@ -72804,15 +72807,25 @@ var SocketDashboard = /*#__PURE__*/function (_React$Component) {
                 value: value
               }
             }).done(function (response) {
-              var new_values = component.state.values;
-              new_values[name] = value;
-              component.setState({
-                loading: false,
-                values: new_values
-              });
+              if (response.success) {
+                var new_values = component.state.values;
+                new_values[name] = value;
+                component.setState({
+                  loading: false,
+                  values: new_values
+                });
+              } else {
+                console.log(response);
+                alert('There\'s been an error when trying to save! Check the console for details.');
+                component.setState({
+                  loading: false
+                });
+              }
             }).error(function (err) {
+              console.log(response);
+              alert('There\'s been an error when trying to save! Check the console for details.');
               component.setState({
-                loading: true
+                loading: false
               });
             });
           });
@@ -72842,15 +72855,25 @@ var SocketDashboard = /*#__PURE__*/function (_React$Component) {
               value: value
             }
           }).done(function (response) {
-            var new_values = component.state.values;
-            new_values[name] = value;
-            component.setState({
-              loading: false,
-              values: new_values
-            });
+            if (response.success) {
+              var new_values = component.state.values;
+              new_values[name] = value;
+              component.setState({
+                loading: false,
+                values: new_values
+              });
+            } else {
+              console.log(response);
+              alert('There\'s been an error when trying to save! Check the console for details.');
+              component.setState({
+                loading: false
+              });
+            }
           }).error(function (err) {
+            console.log(err);
+            alert('There\'s been an error when trying to save! Check the console for details.');
             component.setState({
-              loading: true
+              loading: false
             });
           });
         });
@@ -72879,15 +72902,25 @@ var SocketDashboard = /*#__PURE__*/function (_React$Component) {
               value: value === 'on' ? 1 : 0
             }
           }).done(function (response) {
-            var new_values = component.state.values;
-            new_values[name] = value;
-            component.setState({
-              loading: false,
-              values: new_values
-            });
+            if (response.success) {
+              var new_values = component.state.values;
+              new_values[name] = value;
+              component.setState({
+                loading: false,
+                values: new_values
+              });
+            } else {
+              console.log(response);
+              alert('There\'s been an error when trying to save! Check the console for details.');
+              component.setState({
+                loading: false
+              });
+            }
           }).error(function (err) {
+            console.log(err);
+            alert('There\'s been an error when trying to save! Check the console for details.');
             component.setState({
-              loading: true
+              loading: false
             });
           });
         });
@@ -72924,15 +72957,25 @@ var SocketDashboard = /*#__PURE__*/function (_React$Component) {
               value: value
             }
           }).done(function (response) {
-            var new_values = component.state.values;
-            new_values[name] = value;
-            component.setState({
-              loading: false,
-              values: new_values
-            });
+            if (response.success) {
+              var new_values = component.state.values;
+              new_values[name] = value;
+              component.setState({
+                loading: false,
+                values: new_values
+              });
+            } else {
+              console.log(response);
+              alert('There\'s been an error when trying to save! Check the console for details.');
+              component.setState({
+                loading: false
+              });
+            }
           }).error(function (err) {
+            console.log(err);
+            alert('There\'s been an error when trying to save! Check the console for details.');
             component.setState({
-              loading: true
+              loading: false
             });
           });
         });
@@ -72958,8 +73001,8 @@ var SocketDashboard = /*#__PURE__*/function (_React$Component) {
       });
     }
   }, {
-    key: "setup_loading_flag",
-    value: function setup_loading_flag($val) {
+    key: "setupLoadingFlag",
+    value: function setupLoadingFlag($val) {
       this.setState({
         loading: $val
       });
@@ -73084,12 +73127,12 @@ var SocketGallery = /*#__PURE__*/function (_React$Component) {
     }
 
     _this.handleOpen = _this.handleOpen.bind(_assertThisInitialized(_this));
-    _this.init_media_modal = _this.init_media_modal.bind(_assertThisInitialized(_this));
+    _this.initMediaModal = _this.initMediaModal.bind(_assertThisInitialized(_this));
     _this.onclose = _this.onclose.bind(_assertThisInitialized(_this));
     _this.getSelection = _this.getSelection.bind(_assertThisInitialized(_this));
     _this.clearGallery = _this.clearGallery.bind(_assertThisInitialized(_this));
 
-    _this.init_media_modal();
+    _this.initMediaModal();
 
     return _this;
   }
@@ -73190,7 +73233,7 @@ var SocketGallery = /*#__PURE__*/function (_React$Component) {
       e.preventDefault();
       var component = this,
           name = component.props.name;
-      component.props.setup_loading_flag(true);
+      component.props.setupLoadingFlag(true);
       component.setState({
         value: []
       });
@@ -73207,10 +73250,10 @@ var SocketGallery = /*#__PURE__*/function (_React$Component) {
             value: component.state.value.join(',')
           }
         }).done(function (response) {
-          component.props.setup_loading_flag(false);
+          component.props.setupLoadingFlag(false);
         }).error(function (err) {
           console.log(err);
-          component.props.setup_loading_flag(false);
+          component.props.setupLoadingFlag(false);
         });
       }, 1000);
     }
@@ -73218,7 +73261,7 @@ var SocketGallery = /*#__PURE__*/function (_React$Component) {
     key: "onclose",
     value: function onclose(name) {
       var component = this;
-      component.props.setup_loading_flag(true);
+      component.props.setupLoadingFlag(true);
       setTimeout(function () {
         jQuery.ajax({
           url: socket.wp_rest.root + socket.wp_rest.api_base + '/option',
@@ -73232,10 +73275,10 @@ var SocketGallery = /*#__PURE__*/function (_React$Component) {
             value: component.state.value.join(',')
           }
         }).done(function (response) {
-          component.props.setup_loading_flag(false);
+          component.props.setupLoadingFlag(false);
         }).error(function (err) {
           console.log(err);
-          component.props.setup_loading_flag(false);
+          component.props.setupLoadingFlag(false);
         });
       }, 1000);
     }
@@ -73256,8 +73299,8 @@ var SocketGallery = /*#__PURE__*/function (_React$Component) {
       }
     }
   }, {
-    key: "init_media_modal",
-    value: function init_media_modal() {
+    key: "initMediaModal",
+    value: function initMediaModal() {
       var component = this;
       wp.media.socketgallery[component.props.name] = {
         frame: function frame() {
@@ -73391,7 +73434,7 @@ var SocketGallery = /*#__PURE__*/function (_React$Component) {
 SocketGallery.propTypes = {
   name: _propTypes.default.string,
   value: _propTypes.default.string,
-  setup_loading_flag: _propTypes.default.func
+  setupLoadingFlag: _propTypes.default.func
 };
 var _default = SocketGallery;
 exports.default = _default;
@@ -73488,7 +73531,7 @@ var SocketPostSelect = /*#__PURE__*/function (_React$Component) {
 
       var component = _assertThisInitialized(_this);
 
-      component.props.setup_loading_flag(true);
+      component.props.setupLoadingFlag(true);
       jQuery.ajax({
         url: socket.wp_rest.root + socket.wp_rest.api_base + '/option',
         method: 'POST',
@@ -73501,10 +73544,10 @@ var SocketPostSelect = /*#__PURE__*/function (_React$Component) {
           value: value
         }
       }).done(function (response) {
-        component.props.setup_loading_flag(false);
+        component.props.setupLoadingFlag(false);
       }).error(function (err) {
         console.log(err);
-        component.props.setup_loading_flag(false);
+        component.props.setupLoadingFlag(false);
       });
 
       _this.setState({
@@ -73614,7 +73657,7 @@ var SocketPostSelect = /*#__PURE__*/function (_React$Component) {
 SocketPostSelect.propTypes = {
   name: _propTypes.default.string,
   value: _propTypes.default.array,
-  setup_loading_flag: _propTypes.default.func
+  setupLoadingFlag: _propTypes.default.func
 };
 var _default = SocketPostSelect;
 exports.default = _default;
@@ -73711,7 +73754,7 @@ var SocketTaxSelect = /*#__PURE__*/function (_React$Component) {
 
       var component = _assertThisInitialized(_this);
 
-      component.props.setup_loading_flag(true);
+      component.props.setupLoadingFlag(true);
       jQuery.ajax({
         url: socket.wp_rest.root + socket.wp_rest.api_base + '/option',
         method: 'POST',
@@ -73724,10 +73767,10 @@ var SocketTaxSelect = /*#__PURE__*/function (_React$Component) {
           value: value
         }
       }).done(function (response) {
-        component.props.setup_loading_flag(false);
+        component.props.setupLoadingFlag(false);
       }).error(function (err) {
         console.log(err);
-        component.props.setup_loading_flag(false);
+        component.props.setupLoadingFlag(false);
       });
 
       _this.setState({
@@ -73841,7 +73884,7 @@ var SocketTaxSelect = /*#__PURE__*/function (_React$Component) {
 SocketTaxSelect.propTypes = {
   name: _propTypes.default.string,
   value: _propTypes.default.array,
-  setup_loading_flag: _propTypes.default.func
+  setupLoadingFlag: _propTypes.default.func
 };
 var _default = SocketTaxSelect;
 exports.default = _default;

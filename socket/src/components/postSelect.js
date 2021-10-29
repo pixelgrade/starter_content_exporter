@@ -58,7 +58,7 @@ class SocketPostSelect extends React.Component {
 	handleChange = (e, { value }) => {
 		let component = this
 
-		component.props.setup_loading_flag( true )
+		component.props.setupLoadingFlag( true )
 
 		jQuery.ajax({
 			url: socket.wp_rest.root + socket.wp_rest.api_base + '/option',
@@ -72,10 +72,10 @@ class SocketPostSelect extends React.Component {
 				value: value
 			}
 		}).done(function (response) {
-			component.props.setup_loading_flag( false );
+			component.props.setupLoadingFlag( false );
 		}).error(function (err) {
 			console.log(err);
-			component.props.setup_loading_flag( false );
+			component.props.setupLoadingFlag( false );
 		});
 
 		this.setState({ value });
@@ -130,7 +130,7 @@ class SocketPostSelect extends React.Component {
 SocketPostSelect.propTypes = {
 	name: PropTypes.string,
 	value: PropTypes.array,
-	setup_loading_flag: PropTypes.func
+	setupLoadingFlag: PropTypes.func
 }
 
 export default SocketPostSelect;

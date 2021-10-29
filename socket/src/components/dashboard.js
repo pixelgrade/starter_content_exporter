@@ -45,7 +45,7 @@ class SocketDashboard extends React.Component {
 		this.tagsHandleAddition = this.tagsHandleAddition.bind(this)
 		this.multicheckboxHandleChange = this.multicheckboxHandleChange.bind(this)
 		this.clean_the_house = this.clean_the_house.bind(this)
-		this.setup_loading_flag = this.setup_loading_flag.bind(this)
+		this.setupLoadingFlag = this.setupLoadingFlag.bind(this)
 	}
 
 	render () {
@@ -302,17 +302,15 @@ class SocketDashboard extends React.Component {
 			}
 
 			case 'tags' : {
-				let dropDownOptions = []
+				let dropdownOptions = []
 				let defaultValues = []
 
-				if (value !== '') {
-					{
-						Object.keys(value).map(function (key) {
-							let option = value[key]
-							dropDownOptions.push({key: option, value: option, text: option})
-							defaultValues.push(option)
-						})
-					}
+				if ( ! isEmpty(value)) {
+					Object.keys(value).map(function (key) {
+						let option = value[key]
+						dropdownOptions.push({key: option, value: option, text: option})
+						defaultValues.push(option)
+					})
 				}
 
 				output = <Form.Field>
@@ -323,7 +321,7 @@ class SocketDashboard extends React.Component {
 						allowAdditions
 						selection
 						multiple
-						options={dropDownOptions}
+						options={dropdownOptions}
 						value={defaultValues}
 						onChange={component.tagsHandleAddition}/>
 				</Form.Field>
@@ -331,13 +329,13 @@ class SocketDashboard extends React.Component {
 			}
 
 			case 'post_select' : {
-				if ('' === value) {
+				if ( isEmpty(value)) {
 					value = []
 				}
 
 				output = <SocketPostSelect key={fieldKey} name={fieldKey} value={value}
 										   field={fieldConfig} placeholder={placeholder}
-										   setup_loading_flag={component.setup_loading_flag}/>
+										   setupLoadingFlag={component.setupLoadingFlag}/>
 				break
 			}
 
@@ -348,7 +346,7 @@ class SocketDashboard extends React.Component {
 
 				output = <SocketTaxSelect name={fieldKey} value={value} field={fieldConfig}
 										  placeholder={placeholder}
-										  setup_loading_flag={component.setup_loading_flag}/>
+										  setupLoadingFlag={component.setupLoadingFlag}/>
 				break
 			}
 
@@ -367,7 +365,7 @@ class SocketDashboard extends React.Component {
 				output =
 					<SocketGallery key={fieldKey} name={fieldKey} value={value} field={fieldConfig}
 								   placeholder={placeholder}
-								   setup_loading_flag={component.setup_loading_flag}/>
+								   setupLoadingFlag={component.setupLoadingFlag}/>
 				break
 			}
 
@@ -442,19 +440,28 @@ class SocketDashboard extends React.Component {
 							value: value
 						}
 					}).done(function (response) {
+						if (response.success) {
+							let new_values = component.state.values
 
-						let new_values = component.state.values
+							new_values[name] = value
 
-						new_values[name] = value
-
-						component.setState({
-							loading: false,
-							values: new_values
-						})
+							component.setState({
+								loading: false,
+								values: new_values
+							})
+						} else {
+							console.log(response)
+							alert('There\'s been an error when trying to save! Check the console for details.')
+							component.setState({
+								loading: false,
+							})
+						}
 
 					}).error(function (err) {
+						console.log(response)
+						alert('There\'s been an error when trying to save! Check the console for details.')
 						component.setState({
-							loading: true,
+							loading: false,
 						})
 					})
 
@@ -487,19 +494,28 @@ class SocketDashboard extends React.Component {
 						value: value
 					}
 				}).done(function (response) {
+					if (response.success) {
+						let new_values = component.state.values
 
-					let new_values = component.state.values
+						new_values[name] = value
 
-					new_values[name] = value
-
-					component.setState({
-						loading: false,
-						values: new_values
-					})
+						component.setState({
+							loading: false,
+							values: new_values
+						})
+					} else {
+						console.log(response)
+						alert('There\'s been an error when trying to save! Check the console for details.')
+						component.setState({
+							loading: false,
+						})
+					}
 
 				}).error(function (err) {
+					console.log(err)
+					alert('There\'s been an error when trying to save! Check the console for details.')
 					component.setState({
-						loading: true,
+						loading: false,
 					})
 				})
 			})
@@ -529,19 +545,28 @@ class SocketDashboard extends React.Component {
 						value: (value === 'on') ? 1 : 0
 					}
 				}).done(function (response) {
+					if (response.success) {
+						let new_values = component.state.values
 
-					let new_values = component.state.values
+						new_values[name] = value
 
-					new_values[name] = value
-
-					component.setState({
-						loading: false,
-						values: new_values
-					})
+						component.setState({
+							loading: false,
+							values: new_values
+						})
+					} else {
+						console.log(response)
+						alert('There\'s been an error when trying to save! Check the console for details.')
+						component.setState({
+							loading: false,
+						})
+					}
 
 				}).error(function (err) {
+					console.log(err)
+					alert('There\'s been an error when trying to save! Check the console for details.')
 					component.setState({
-						loading: true,
+						loading: false,
 					})
 				})
 
@@ -581,19 +606,28 @@ class SocketDashboard extends React.Component {
 						value: value
 					}
 				}).done(function (response) {
+					if (response.success) {
+						let new_values = component.state.values
 
-					let new_values = component.state.values
+						new_values[name] = value
 
-					new_values[name] = value
-
-					component.setState({
-						loading: false,
-						values: new_values
-					})
+						component.setState({
+							loading: false,
+							values: new_values
+						})
+					} else {
+						console.log(response)
+						alert('There\'s been an error when trying to save! Check the console for details.')
+						component.setState({
+							loading: false,
+						})
+					}
 
 				}).error(function (err) {
+					console.log(err)
+					alert('There\'s been an error when trying to save! Check the console for details.')
 					component.setState({
-						loading: true,
+						loading: false,
 					})
 				})
 
@@ -607,10 +641,10 @@ class SocketDashboard extends React.Component {
 			componentNode = ReactDOM.findDOMNode(e.target),
 			name = null
 
-		// try to get the field name
+		// Try to get the field name.
 		if (typeof e.target.parentNode.dataset.field_key !== 'undefined') {
 			name = e.target.parentNode.dataset.field_key
-			// in case this is a tag removal, the field is on the ancestor
+			// In case this is a tag removal, the field is on the ancestor.
 		} else if (typeof e.target.parentNode.parentNode.dataset.field_key !== 'undefined') {
 			name = e.target.parentNode.parentNode.dataset.field_key
 		} else {
@@ -651,10 +685,13 @@ class SocketDashboard extends React.Component {
 						})
 					} else {
 						console.log(response)
+						alert('There\'s been an error when trying to save! Check the console for details.')
 					}
 				}).error(function (err) {
+					alert('There\'s been an error when trying to save! Check the console for details.')
+					console.log(err)
 					component.setState({
-						loading: true,
+						loading: false,
 					})
 				})
 			})
@@ -694,7 +731,7 @@ class SocketDashboard extends React.Component {
 		return notices
 	}
 
-	setup_loading_flag ($val) {
+	setupLoadingFlag ($val) {
 		this.setState({loading: $val})
 	}
 

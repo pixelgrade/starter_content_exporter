@@ -37,12 +37,12 @@ class SocketGallery extends React.Component {
 		}
 
 		this.handleOpen = this.handleOpen.bind(this);
-		this.init_media_modal = this.init_media_modal.bind(this);
+		this.initMediaModal = this.initMediaModal.bind(this);
 		this.onclose = this.onclose.bind(this);
 		this.getSelection = this.getSelection.bind(this);
 		this.clearGallery = this.clearGallery.bind(this);
 
-		this.init_media_modal();
+		this.initMediaModal();
 	}
 
 	render() {
@@ -124,7 +124,7 @@ class SocketGallery extends React.Component {
 		let component = this,
 			name = component.props.name;
 
-		component.props.setup_loading_flag( true );
+		component.props.setupLoadingFlag( true );
 
 		component.setState({ value: []});
 
@@ -141,10 +141,10 @@ class SocketGallery extends React.Component {
 					value: component.state.value.join(',')
 				}
 			}).done(function (response) {
-				component.props.setup_loading_flag( false );
+				component.props.setupLoadingFlag( false );
 			}).error(function (err) {
 				console.log(err);
-				component.props.setup_loading_flag( false );
+				component.props.setupLoadingFlag( false );
 			});
 		}, 1000 );
 	}
@@ -170,7 +170,7 @@ class SocketGallery extends React.Component {
 	onclose( name ){
 		let component = this
 
-		component.props.setup_loading_flag( true )
+		component.props.setupLoadingFlag( true )
 
 		setTimeout(function () {
 			jQuery.ajax({
@@ -185,10 +185,10 @@ class SocketGallery extends React.Component {
 					value: component.state.value.join(',')
 				}
 			}).done(function (response) {
-				component.props.setup_loading_flag( false );
+				component.props.setupLoadingFlag( false );
 			}).error(function (err) {
 				console.log(err);
-				component.props.setup_loading_flag( false );
+				component.props.setupLoadingFlag( false );
 			});
 		}, 1000 );
 	}
@@ -209,7 +209,7 @@ class SocketGallery extends React.Component {
 		}
 	}
 
-	init_media_modal() {
+	initMediaModal() {
 		let component = this;
 
 		wp.media.socketgallery[component.props.name] = {
@@ -346,7 +346,7 @@ class SocketGallery extends React.Component {
 SocketGallery.propTypes = {
 	name: PropTypes.string,
 	value: PropTypes.string,
-	setup_loading_flag: PropTypes.func
+	setupLoadingFlag: PropTypes.func
 }
 
 export default SocketGallery;
