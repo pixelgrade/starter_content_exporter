@@ -112,7 +112,7 @@ class SocketGallery extends React.Component {
 							<Icon name='close' />
 						</Button.Content>
 					</Button>}
-					content='Click here if you want to clean up'
+					content='Click here if you want to remove all media'
 				/>
 			</div>
 		return output;

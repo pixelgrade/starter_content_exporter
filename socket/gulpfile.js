@@ -92,13 +92,26 @@ var browserify = require('browserify');
 var watchify = require('watchify');
 var babel = require('babelify');
 
-function compile_admin(done, watch) {
-	var bundler = watchify(browserify('./src/socket.js', { debug: true }).transform(babel, {}));
+function compile_admin(done) {
+	var bundler = browserify('./src/socket.js', { debug: true }).transform(babel, {});
 
-	function rebundle_admin( done ) {
-		return bundler.bundle()
+	bundler.bundle()
+		.on('error', function(err) { console.error(err); this.emit('end'); })
+		.on('end', done)
+		.pipe(source('socket.js'))
+		.pipe(buffer())
+		.pipe(sourcemaps.init({ loadMaps: true }))
+		.pipe(sourcemaps.write('./'))
+		.pipe(gulp.dest('./js'));
+}
+
+function watch_admin() {
+	var bundler = browserify('./src/socket.js', { debug: true }).transform(babel, {});
+	var b = watchify(bundler);
+
+	function rebundle_admin() {
+		bundler.bundle()
 			.on('error', function(err) { console.error(err); this.emit('end'); })
-			.on('end', done)
 			.pipe(source('socket.js'))
 			.pipe(buffer())
 			.pipe(sourcemaps.init({ loadMaps: true }))
@@ -106,20 +119,14 @@ function compile_admin(done, watch) {
 			.pipe(gulp.dest('./js'));
 	}
 
-	if (watch) {
-		bundler.on('update', function() {
-			console.log('-> bundling admin dashboard...' + new Date().getTime() / 1000);
-			rebundle_admin( done );
-		});
-	}
+	b.on('update', function() {
+		console.log('-> bundling admin dashboard...' + new Date().getTime() / 1000);
+		rebundle_admin();
+	});
 
-	rebundle_admin( done );
+	rebundle_admin();
 }
 
-function watch_admin() {
-	return compile_admin(true);
-}
+gulp.task('compile', function(done) { compile_admin(done); });
 
-gulp.task('compile', function(done) { return compile_admin(done, false); });
-
-gulp.task('watch', function() { return watch_admin(true); });
+gulp.task('watch', function(done) { watch_admin(done); });

@@ -72632,7 +72632,7 @@ var SocketGallery = /*#__PURE__*/function (_React$Component) {
         }, /*#__PURE__*/_react.default.createElement(_semanticUiReact.Icon, {
           name: "close"
         }))),
-        content: "Click here if you want to clean up"
+        content: "Click here if you want to remove all mediaa"
       }));
       return output;
     }
