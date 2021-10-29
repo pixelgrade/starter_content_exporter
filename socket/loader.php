@@ -14,76 +14,60 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 
 	class WP_Socket {
 
-		private $config;
+		const VERSION = '1.0.0';
+
+		private array $config;
 
 		private $values;
 
 		private $defaults;
 
-		private $plugin = 'socket';
+		private string $plugin = 'socket';
 
-		private $api_base = 'socket';
+		private string $api_base = 'socket';
 
-		private $options_key = 'socket';
+		private string $options_key = 'socket';
 
-		private $page_title;
+		private string $page_title;
+		private string $page_desc = '';
 
-		private $nav_label;
+		private string $nav_label;
 
-		public function __construct( $args ) {
+		public function __construct( array $args ) {
 
 			if ( empty( $args['api_base'] ) || empty( $args['plugin'] ) ) {
+				_doing_it_wrong( __FUNCTION__, esc_html( __( 'You need to provide `api_base` and `plugin` args to initialize WP_Sockets.' ) ), esc_html( self::VERSION ) );
 				return;
 			}
 
 			$this->plugin = $args['plugin'];
-
 			$this->api_base = $args['api_base'];
-
 			$this->page_title = $this->nav_label = esc_html__( 'Socket Admin Page', 'socket' );
 
-			$this->config = apply_filters( 'socket_config_for_' . $this->plugin, array() );
+			// All
+			$this->config = apply_filters( 'socket_config_for_' . $this->plugin, [] );
 
+			// Change instance config if the configuration provides certain entries.
 			if ( ! empty( $this->config['options_key'] ) ) {
 				$this->options_key = $this->config['options_key'];
 			}
-
 			if ( ! empty( $this->config['page_title'] ) ) {
 				$this->page_title = $this->config['page_title'];
 			}
-
 			if ( ! empty( $this->config['nav_label'] ) ) {
 				$this->nav_label = $this->config['nav_label'];
 			}
 
-			add_action( 'rest_api_init', array( $this, 'add_rest_routes_api' ) );
+			add_action( 'rest_api_init', [ $this, 'add_rest_routes_api' ] );
 
-			add_action( 'admin_menu', array( $this, 'add_admin_menu' ) );
+			add_action( 'admin_menu', [ $this, 'add_admin_menu' ] );
 
-			add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_styles' ) );
+			add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_styles' ] );
 
-			add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
+			add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_scripts' ] );
 
 			$this->set_defaults( $this->config );
 		}
-
-		/**
-		 * Cloning is forbidden.
-		 *
-		 * @since 1.0.0
-		 */
-		public function __clone() {
-			_doing_it_wrong( __FUNCTION__, esc_html( __( 'Cheatin&#8217; huh?' ) ), esc_html( $this->_version ) );
-		} // End __clone ()
-
-		/**
-		 * Unserializing instances of this class is forbidden.
-		 *
-		 * @since 1.0.0
-		 */
-		public function __wakeup() {
-			_doing_it_wrong( __FUNCTION__, esc_html( __( 'Cheatin&#8217; huh?' ) ), esc_html( $this->_version ) );
-		} // End __wakeup ()
 
 		// Register a settings page
 		function add_admin_menu() {
@@ -93,21 +77,23 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 				$this->nav_label,
 				'manage_options',
 				$this->plugin,
-				array(
+				[
 					$this,
 					'socket_options_page',
-				)
+				]
 			);
 		}
 
-		function socket_options_page() {
-			$state = $this->get_option( 'state' ); ?>
+		function socket_options_page() { ?>
 			<div class="wrap">
 				<div class="socket-wrapper">
 					<header class="title">
 						<h1 class="page-title"><?php echo $this->page_title ?></h1>
-						<!--						<div class="description">-->
-						<?php //echo $this->description ?><!--</div>-->
+						<?php if ( ! empty( $this->page_desc ) ) { ?>
+						<div class="description">
+							<?php echo $this->page_desc; ?>
+						</div>
+						<?php } ?>
 					</header>
 					<div class="content">
 						<div id="socket_dashboard"></div>
@@ -138,7 +124,7 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 				wp_register_style(
 					'semantic-ui',
 					plugin_dir_url( __FILE__ ) . 'css/semantic-ui/semantic.min.css',
-					array(),
+					[],
 					filemtime( plugin_dir_path( __FILE__ ) . 'css/semantic-ui/semantic.min.css' ),
 					'all'
 				);
@@ -146,7 +132,7 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 				wp_enqueue_style(
 					'socket-dashboard',
 					plugin_dir_url( __FILE__ ) . 'css/socket.css',
-					array( 'semantic-ui' ),
+					[ 'semantic-ui' ],
 					filemtime( plugin_dir_path( __FILE__ ) . 'css/socket.css' ),
 					'all'
 				);
@@ -166,12 +152,12 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 				wp_enqueue_script(
 					'socket-dashboard',
 					plugin_dir_url( __FILE__ ) . 'js/socket.js',
-					array(
+					[
 						'jquery',
 						'wp-util',
 						'wp-api',
 						'shortcode',
-					),
+					],
 					filemtime( plugin_dir_path( __FILE__ ) . 'js/socket.js' ),
 					true
 				);
@@ -183,28 +169,28 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 		function localize_js_data( $script ) {
 			$values = $this->get_option( 'state' );
 
-			$localized_data = array(
-				'wp_rest'   => array(
+			$localized_data = [
+				'wp_rest'   => [
 					'root'         => esc_url_raw( rest_url() ),
 					'api_base'     => $this->api_base,
 					'nonce'        => wp_create_nonce( 'wp_rest' ),
 					'socket_nonce' => wp_create_nonce( 'socket_rest' ),
-				),
+				],
 				'admin_url' => admin_url(),
 				'config'    => $this->config,
 				'values'    => $this->cleanup_values( $this->values ),
-				'wp'        => array(
-					'taxonomies' => get_taxonomies( array( 'show_in_rest' => true ), 'objects' ),
-					'post_types' => get_post_types( array( 'show_in_rest' => true ), 'objects' ),
-				),
-			);
+				'wp'        => [
+					'taxonomies' => get_taxonomies( [ 'show_in_rest' => true ], 'objects' ),
+					'post_types' => get_post_types( [ 'show_in_rest' => true ], 'objects' ),
+				],
+			];
 
 			wp_localize_script( $script, 'socket', $localized_data );
 		}
 
 		function cleanup_values( $values ) {
 			if ( empty( $values ) ) {
-				return array();
+				return [];
 			}
 
 			if ( is_object( $values ) ) {
@@ -226,24 +212,24 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 			//The Following registers an api route with multiple parameters.
 			$route = 'socket';
 
-			register_rest_route( $this->api_base, '/option', array(
+			register_rest_route( $this->api_base, '/option', [
 				'methods'             => 'GET',
-				'callback'            => array( $this, 'rest_get_state' ),
-				'permission_callback' => array( $this, 'permission_nonce_callback' ),
-			) );
+				'callback'            => [ $this, 'rest_get_state' ],
+				'permission_callback' => [ $this, 'permission_nonce_callback' ],
+			] );
 
-			register_rest_route( $this->api_base, '/option', array(
+			register_rest_route( $this->api_base, '/option', [
 				'methods'             => 'POST',
-				'callback'            => array( $this, 'rest_set_state' ),
-				'permission_callback' => array( $this, 'permission_nonce_callback' ),
-			) );
+				'callback'            => [ $this, 'rest_set_state' ],
+				'permission_callback' => [ $this, 'permission_nonce_callback' ],
+			] );
 
 			// debug tools
-			register_rest_route( $this->api_base, '/cleanup', array(
+			register_rest_route( $this->api_base, '/cleanup', [
 				'methods'             => 'POST',
-				'callback'            => array( $this, 'rest_cleanup' ),
-				'permission_callback' => array( $this, 'permission_nonce_callback' ),
-			) );
+				'callback'            => [ $this, 'rest_cleanup' ],
+				'permission_callback' => [ $this, 'permission_nonce_callback' ],
+			] );
 		}
 
 		function permission_nonce_callback() {
@@ -277,9 +263,9 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 			} else {
 				$option_value = $_POST['value'];
 
-				// a little sanitize
+				// A little sanitization.
 				if ( is_array( $option_value ) ) {
-					//					$option_value = array_map( 'sanitize_text_field', $option_value );
+					// $option_value = array_map( 'sanitize_text_field', $option_value );
 				} else {
 					$option_value = sanitize_text_field( $option_value );
 				}
@@ -298,17 +284,17 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 			if ( (int) $_POST['test1'] + (int) $_POST['test2'] === (int) $_POST['confirm'] ) {
 				$current_user = _wp_get_current_user();
 
-				$this->values = array();
+				$this->values = [];
 				wp_send_json_success( $this->save_values() );
 
 				wp_send_json_success( 'ok' );
 			}
 
-			wp_send_json_error( array(
+			wp_send_json_error( [
 				$_POST['test1'],
 				$_POST['test2'],
 				$_POST['confirm'],
-			) );
+			] );
 		}
 
 		/**
@@ -396,21 +382,39 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 
 			return $result;
 		}
+
+		/**
+		 * Cloning is forbidden.
+		 *
+		 * @since 1.0.0
+		 */
+		public function __clone() {
+			_doing_it_wrong( __FUNCTION__, esc_html( __( 'Cheatin&#8217; huh?' ) ), esc_html( WP_Socket::VERSION ) );
+		}
+
+		/**
+		 * Unserializing instances of this class is forbidden.
+		 *
+		 * @since 1.0.0
+		 */
+		public function __wakeup() {
+			_doing_it_wrong( __FUNCTION__, esc_html( __( 'Cheatin&#8217; huh?' ) ), esc_html( WP_Socket::VERSION ) );
+		}
 	}
 }
 
 /**
  * Add the necessary filter to each post type
  **/
-function rest_api_filter_add_filters() {
+function wp_socket_rest_api_filter_add_filters() {
 	$post_types = get_post_types( array( 'show_in_rest' => true ), 'objects' );
 
 	foreach ( $post_types as $name => $post_type ) {
-		add_filter( 'rest_' . $name . '_query', 'rest_api_filter_add_filter_param', 10, 2 );
+		add_filter( 'rest_' . $name . '_query', 'wp_socket_rest_api_filter_add_filter_param', 10, 2 );
 	}
 }
 
-add_action( 'rest_api_init', 'rest_api_filter_add_filters', 11 );
+add_action( 'rest_api_init', 'wp_socket_rest_api_filter_add_filters', 11 );
 
 /**
  * Add the filter parameter
@@ -420,7 +424,7 @@ add_action( 'rest_api_init', 'rest_api_filter_add_filters', 11 );
  *
  * @return array $args.
  **/
-function rest_api_filter_add_filter_param( $args, $request ) {
+function wp_socket_rest_api_filter_add_filter_param( array $args, WP_REST_Request $request ): array {
 	// Bail out if no filter parameter is set.
 	if ( empty( $request['filter'] ) || ! is_array( $request['filter'] ) ) {
 		return $args;

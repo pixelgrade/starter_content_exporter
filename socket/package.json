@@ -28,6 +28,7 @@
 	},
 	"dependencies": {
 		"core-js": "^3.19.0",
+		"entities": "^3.0.1",
 		"lodash": "^4.17.21"
 	}
 }

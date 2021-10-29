@@ -279,11 +279,11 @@ class SocketDashboard extends React.Component {
 			}
 
 			case 'select' : {
-				let dropDownOptions = []
+				let dropdownOptions = []
 
 				{
 					Object.keys(fieldConfig.options).map(function (opt) {
-						dropDownOptions.push({key: opt, value: opt, text: fieldConfig.options[opt]})
+						dropdownOptions.push({key: opt, value: opt, text: fieldConfig.options[opt]})
 					})
 				}
 
@@ -295,7 +295,7 @@ class SocketDashboard extends React.Component {
 						closeOnEscape
 						closeOnBlur
 						defaultValue={value}
-						options={dropDownOptions}
+						options={dropdownOptions}
 						onChange={component.radioHandleChange}/>
 				</Form.Field>
 				break

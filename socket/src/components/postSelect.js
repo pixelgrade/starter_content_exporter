@@ -7,6 +7,7 @@ import {
 } from 'semantic-ui-react'
 import isEmpty from 'lodash/isEmpty'
 import isUndefined from 'lodash/isUndefined'
+import {decode} from 'entities';
 
 class SocketPostSelect extends React.Component {
 
@@ -106,17 +107,18 @@ class SocketPostSelect extends React.Component {
 						let model = models[i];
 
 						let pre = '';
-						let title = pre + model.title.rendered;
-
 						if ( model.parent > 0 ) {
 							pre = ' –– '
 						}
 
+						let title;
 						if ( isEmpty( model.title.rendered ) ) {
 							title = pre + '<No title!>'
+						} else {
+							title = pre + model.title.rendered;
 						}
 
-						posts.push({ key: model.id, value: model.id.toString(), text: title });
+						posts.push({ key: model.id, value: model.id.toString(), text: decode( title ) });
 					})}
 
 					component.setState( { posts: posts, loading: false } );
