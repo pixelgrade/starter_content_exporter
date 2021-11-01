@@ -1,4 +1,4 @@
-import React from "react"
+import React from 'react'
 import PropTypes from 'prop-types'
 
 import {
@@ -7,13 +7,13 @@ import {
 } from 'semantic-ui-react'
 import isEmpty from 'lodash/isEmpty'
 import isUndefined from 'lodash/isUndefined'
-import {decode} from 'entities';
+import { decode } from 'entities'
 
 class SocketPostSelect extends React.Component {
 
-	constructor(props) {
+	constructor (props) {
 		// this makes the this
-		super(props);
+		super(props)
 
 		// get the current state localized by wordpress
 		this.state = {
@@ -21,22 +21,22 @@ class SocketPostSelect extends React.Component {
 			posts: [],
 			name: null,
 			value: this.props.value
-		};
+		}
 
-		this.handleChange = this.handleChange.bind(this);
+		this.handleChange = this.handleChange.bind(this)
 	}
 
-	render() {
+	render () {
 		let component = this,
 			output = null,
 			value = this.props.value,
-			placeholder = this.props.placeholder || 'Select';
+			placeholder = this.props.placeholder || 'Select'
 
-		if ( isEmpty( value ) ) {
+		if (isEmpty(value)) {
 			value = []
 		}
 
-		output = <Form.Field className="post_type_select" >
+		output = <Form.Field className="post_type_select">
 			<Dropdown
 				placeholder={placeholder}
 				fluid
@@ -52,19 +52,19 @@ class SocketPostSelect extends React.Component {
 			/>
 		</Form.Field>
 
-		return output;
+		return output
 	}
 
-	handleChange = (e, { value }) => {
+	handleChange = (e, {value}) => {
 		let component = this
 
-		component.props.setupLoadingFlag( true )
+		component.props.setupLoadingFlag(true)
 
 		jQuery.ajax({
 			url: socket.wp_rest.root + socket.wp_rest.api_base + '/option',
 			method: 'POST',
 			beforeSend: function (xhr) {
-				xhr.setRequestHeader('X-WP-Nonce', socket.wp_rest.nonce);
+				xhr.setRequestHeader('X-WP-Nonce', socket.wp_rest.nonce)
 			},
 			data: {
 				'socket_nonce': socket.wp_rest.socket_nonce,
@@ -72,58 +72,61 @@ class SocketPostSelect extends React.Component {
 				value: value
 			}
 		}).done(function (response) {
-			component.props.setupLoadingFlag( false );
+			component.props.setupLoadingFlag(false)
 		}).error(function (err) {
-			console.log(err);
-			component.props.setupLoadingFlag( false );
-		});
+			console.log(err)
+			component.props.setupLoadingFlag(false)
+		})
 
-		this.setState({ value });
+		this.setState({value})
 	}
 
-	componentWillMount(){
-		if ( ! this.state.loading ) {
-			return false;
+	componentWillMount () {
+		if (!this.state.loading) {
+			return false
 		}
 
-		let component = this;
+		let component = this
 
 		// load all the posts
-		wp.api.loadPromise.done( function() {
+		wp.api.loadPromise.done(function () {
 			let wpPosts = new wp.api.collections.Posts(),
 				posts = [],
-				query = {};
+				query = {}
 
-			if ( ! isUndefined( component.props.field.query ) ) {
-				query = { ...query, ...component.props.field.query };
+			if (!isUndefined(component.props.field.query)) {
+				query = {...query, ...component.props.field.query}
 			}
 
 			wpPosts.fetch({
-				data : {
+				data: {
 					per_page: 100,
 					filter: query
-				} }).done(function (models) {
-					{Object.keys(models).map(function ( i ) {
-						let model = models[i];
+				}
+			}).done(function (models) {
+				{
+					Object.keys(models).map(function (i) {
+						let model = models[i]
 
-						let pre = '';
-						if ( model.parent > 0 ) {
+						let pre = ''
+						if (model.parent > 0) {
 							pre = ' –– '
 						}
 
-						let title;
-						if ( isEmpty( model.title.rendered ) ) {
+						let title
+						if (isEmpty(model.title.rendered)) {
 							title = pre + '<No title!>'
 						} else {
-							title = pre + model.title.rendered;
+							title = pre + model.title.rendered
 						}
 
-						posts.push({ key: model.id, value: model.id.toString(), text: decode( title ) });
-					})}
+						posts.push({key: model.id, value: model.id.toString(), text: decode(title)})
+					})
+				}
 
-					component.setState( { posts: posts, loading: false } );
-				});
-		});
+				component.setState({posts: posts, loading: false})
+			})
+		})
 	}
 }
 
@@ -133,4 +136,4 @@ SocketPostSelect.propTypes = {
 	setupLoadingFlag: PropTypes.func
 }
 
-export default SocketPostSelect;
+export default SocketPostSelect

@@ -76,30 +76,30 @@ class SocketDashboard extends React.Component {
 	renderSockets () {
 		let component = this
 
-		let socketKeys = Object.keys(socket.config.sockets);
+		let socketKeys = Object.keys(socket.config.sockets)
 
-		let output = [];
-		let groupOutput = [];
-		let columns = 0;
+		let output = []
+		let groupOutput = []
+		let columns = 0
 
 		// Check if we need to group sockets into columns.
-		if ( get( socket, 'config.display.group', false ) ) {
-			let socketsGroups = get( socket, 'config.display.groups', false );
+		if (get(socket, 'config.display.group', false)) {
+			let socketsGroups = get(socket, 'config.display.groups', false)
 
-			if ( isArrayLike( socketsGroups ) ) {
+			if (isArrayLike(socketsGroups)) {
 				for (let i = 0; i < socketsGroups.length; i++) {
-					if ( ! get( socketsGroups[i], 'sockets', false ) ) {
+					if (!get(socketsGroups[i], 'sockets', false)) {
 						continue
 					}
-					groupOutput = [];
+					groupOutput = []
 
-					if ( get( socketsGroups[i], 'title', false ) ) {
+					if (get(socketsGroups[i], 'title', false)) {
 						groupOutput.push(
 							<Segment key={'socketgroup_title_' + columns}>
 								<Header as="h2" content={socketsGroups[i].title}/>
-								{ get( socketsGroups[i], 'desc', false )
+								{get(socketsGroups[i], 'desc', false)
 									?
-									<p dangerouslySetInnerHTML={{__html:socketsGroups[i].desc}} />
+									<p dangerouslySetInnerHTML={{__html: socketsGroups[i].desc}}/>
 									:
 									''
 								}
@@ -116,7 +116,7 @@ class SocketDashboard extends React.Component {
 						groupOutput.push(
 							component.renderSection(socketKey, sectionConfig)
 						)
-						socketKeys.splice( socketKeys.indexOf(socketKey), 1 )
+						socketKeys.splice(socketKeys.indexOf(socketKey), 1)
 					})
 
 					output.push(
@@ -125,14 +125,14 @@ class SocketDashboard extends React.Component {
 						</Grid.Column>
 					)
 
-					columns++;
+					columns++
 				}
 			}
 		}
 
 		// If we have any leftovers, add them in a separate column.
-		if ( socketKeys.length ) {
-			groupOutput = [];
+		if (socketKeys.length) {
+			groupOutput = []
 
 			socketKeys.map(function (socketKey) {
 				if (typeof socketKey === 'undefined') {
@@ -151,10 +151,10 @@ class SocketDashboard extends React.Component {
 				</Grid.Column>
 			)
 
-			columns++;
+			columns++
 		}
 
-		return <Grid columns='equal'>
+		return <Grid columns="equal">
 			<Grid.Row>
 				{output}
 			</Grid.Row>
@@ -165,16 +165,16 @@ class SocketDashboard extends React.Component {
 		let component = this
 
 		return <Segment key={sectionKey}>
-				<Header as="h2" key={sectionKey} content={sectionConfig.label} subheader={sectionConfig.desc}/>
+			<Header as="h2" key={sectionKey} content={sectionConfig.label} subheader={sectionConfig.desc}/>
 
-				<Form>
-					{Object.keys(sectionConfig.items).map(function (fieldKey) {
-						const fieldConfig = sectionConfig.items[fieldKey]
+			<Form>
+				{Object.keys(sectionConfig.items).map(function (fieldKey) {
+					const fieldConfig = sectionConfig.items[fieldKey]
 
-						return component.renderField(fieldKey, fieldConfig)
-					})}
-				</Form>
-			</Segment>
+					return component.renderField(fieldKey, fieldConfig)
+				})}
+			</Form>
+		</Segment>
 	}
 
 	renderField (fieldKey, fieldConfig) {
@@ -281,7 +281,7 @@ class SocketDashboard extends React.Component {
 			case 'select' : {
 				let dropdownOptions = []
 
-				{
+				if (!isUndefined(fieldConfig.options)) {
 					Object.keys(fieldConfig.options).map(function (opt) {
 						dropdownOptions.push({key: opt, value: opt, text: fieldConfig.options[opt]})
 					})
@@ -303,13 +303,28 @@ class SocketDashboard extends React.Component {
 
 			case 'tags' : {
 				let dropdownOptions = []
-				let defaultValues = []
+				let currentValues = []
 
-				if ( ! isEmpty(value)) {
+				if (!isUndefined(fieldConfig.options)) {
+					Object.keys(fieldConfig.options).map(function (opt) {
+						dropdownOptions.push({key: opt, value: opt, text: fieldConfig.options[opt]})
+					})
+				}
+
+				if (!isEmpty(value)) {
 					Object.keys(value).map(function (key) {
 						let option = value[key]
+						currentValues.push(option)
+
+						// Check if we already have the option added.
+						let foundIndex = dropdownOptions.findIndex(function (dropdownOption) {
+							return dropdownOption.value === option
+						})
+						if (-1 !== foundIndex) {
+							return
+						}
+
 						dropdownOptions.push({key: option, value: option, text: option})
-						defaultValues.push(option)
 					})
 				}
 
@@ -322,14 +337,14 @@ class SocketDashboard extends React.Component {
 						selection
 						multiple
 						options={dropdownOptions}
-						value={defaultValues}
+						value={currentValues}
 						onChange={component.tagsHandleAddition}/>
 				</Form.Field>
 				break
 			}
 
 			case 'post_select' : {
-				if ( isEmpty(value)) {
+				if (isEmpty(value)) {
 					value = []
 				}
 
@@ -376,11 +391,11 @@ class SocketDashboard extends React.Component {
 		if ('divider' === fieldConfig.type) {
 			return output
 		} else {
-			description = (!isEmpty( fieldConfig.description )
-				?
-				<p dangerouslySetInnerHTML={{__html: fieldConfig.description}} />
-				:
-				''
+			description = (!isEmpty(fieldConfig.description)
+					?
+					<p dangerouslySetInnerHTML={{__html: fieldConfig.description}}/>
+					:
+					''
 			)
 
 			return <Segment key={fieldKey} padded>
@@ -458,7 +473,7 @@ class SocketDashboard extends React.Component {
 						}
 
 					}).error(function (err) {
-						console.log(response)
+						console.log(err)
 						alert('There\'s been an error when trying to save! Check the console for details.')
 						component.setState({
 							loading: false,
@@ -688,8 +703,8 @@ class SocketDashboard extends React.Component {
 						alert('There\'s been an error when trying to save! Check the console for details.')
 					}
 				}).error(function (err) {
-					alert('There\'s been an error when trying to save! Check the console for details.')
 					console.log(err)
+					alert('There\'s been an error when trying to save! Check the console for details.')
 					component.setState({
 						loading: false,
 					})

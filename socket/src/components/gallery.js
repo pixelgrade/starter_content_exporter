@@ -1,4 +1,4 @@
-import React from "react"
+import React from 'react'
 import PropTypes from 'prop-types'
 
 import {
@@ -17,39 +17,39 @@ import isUndefined from 'lodash/isUndefined'
 
 class SocketGallery extends React.Component {
 
-	constructor(props) {
+	constructor (props) {
 		// this makes the this
-		super(props);
+		super(props)
 
-		this.frame = null;
+		this.frame = null
 
 		// get the current state localized by wordpress
 		this.state = {
 			loading: true,
 			value_on_open: null,
 			attachments: []
-		};
-
-		if ( isEmpty( this.props.value ) ) {
-			this.state.value = []
-		} else {
-			this.state.value = this.props.value.split(',').map(function(t){return parseInt(t)})
 		}
 
-		this.handleOpen = this.handleOpen.bind(this);
-		this.initMediaModal = this.initMediaModal.bind(this);
-		this.onclose = this.onclose.bind(this);
-		this.getSelection = this.getSelection.bind(this);
-		this.clearGallery = this.clearGallery.bind(this);
+		if (isEmpty(this.props.value)) {
+			this.state.value = []
+		} else {
+			this.state.value = this.props.value.split(',').map(function (t) {return parseInt(t)})
+		}
 
-		this.initMediaModal();
+		this.handleOpen = this.handleOpen.bind(this)
+		this.initMediaModal = this.initMediaModal.bind(this)
+		this.onclose = this.onclose.bind(this)
+		this.getSelection = this.getSelection.bind(this)
+		this.clearGallery = this.clearGallery.bind(this)
+
+		this.initMediaModal()
 	}
 
-	render() {
+	render () {
 		let component = this,
 			output = null,
 			value = this.state.value,
-			placeholder = this.props.placeholder || 'Select';
+			placeholder = this.props.placeholder || 'Select'
 
 		const square = {
 			width: 150,
@@ -68,38 +68,42 @@ class SocketGallery extends React.Component {
 						{isEmpty(ids)
 							?
 							<Grid.Column>
-								<Image disabled src='https://react.semantic-ui.com/images/wireframe/white-image.png' size='small' />
+								<Image disabled src="https://react.semantic-ui.com/images/wireframe/white-image.png"
+									   size="small"/>
 							</Grid.Column>
 							:
 							''
 						}
-						{Object.keys(ids).map(function ( i ) {
+						{Object.keys(ids).map(function (i) {
 							let id = Number(ids[i]),
-								attachment = wp.media.model.Attachment.get( id ),
-								url = '';
+								attachment = wp.media.model.Attachment.get(id),
+								url = ''
 
-							if ( typeof  attachment.attributes.sizes === "undefined" ) {
+							if (typeof attachment.attributes.sizes === 'undefined') {
 								return <Grid.Column key={id} style={square}>
-										<Placeholder fluid>
-											<Placeholder.Image square />
-										</Placeholder>
-									</Grid.Column>
+									<Placeholder fluid>
+										<Placeholder.Image square/>
+									</Placeholder>
+								</Grid.Column>
 							}
 
-							if ( isUndefined( attachment.attributes.sizes.thumbnail ) ) {
-								url = attachment.attributes.sizes.full.url;
+							if (isUndefined(attachment.attributes.sizes.thumbnail)) {
+								url = attachment.attributes.sizes.full.url
 							} else {
-								url = attachment.attributes.sizes.thumbnail.url;
+								url = attachment.attributes.sizes.thumbnail.url
 							}
 
-							if ( typeof attachment.attributes.sizes !== "undefined" ) {
+							if (typeof attachment.attributes.sizes !== 'undefined') {
 								return <Grid.Column
 									key={id}
 									style={square}
 									color="grey"
 								>
-									<Image src={url} size='small' width="150" centered/>
-									<Header as='h4' style={{ position: 'absolute', bottom: '-25px' }}>{attachment.attributes.title}</Header>
+									<Image src={url} size="small" width="150" centered/>
+									<Header as="h4" style={{
+										position: 'absolute',
+										bottom: '-25px'
+									}}>{attachment.attributes.title}</Header>
 								</Grid.Column>
 							}
 						})}
@@ -107,33 +111,41 @@ class SocketGallery extends React.Component {
 				</Form.Field>
 
 				<Popup
-					trigger={<Button basic circular style={ { top: '0', position: 'absolute', right: '0', height: '32px', margin: '9px', padding: '6px', textIndent: '2px' } } onClick={this.clearGallery}>
+					trigger={<Button basic circular style={{
+						top: '0',
+						position: 'absolute',
+						right: '0',
+						height: '32px',
+						margin: '9px',
+						padding: '6px',
+						textIndent: '2px'
+					}} onClick={this.clearGallery}>
 						<Button.Content visible>
-							<Icon name='close' />
+							<Icon name="close"/>
 						</Button.Content>
 					</Button>}
-					content='Click here if you want to remove all media'
+					content="Click here if you want to remove all media"
 				/>
 			</div>
-		return output;
+		return output
 	}
 
-	clearGallery(e){
-		e.preventDefault();
+	clearGallery (e) {
+		e.preventDefault()
 
 		let component = this,
-			name = component.props.name;
+			name = component.props.name
 
-		component.props.setupLoadingFlag( true );
+		component.props.setupLoadingFlag(true)
 
-		component.setState({ value: []});
+		component.setState({value: []})
 
 		setTimeout(function () {
 			jQuery.ajax({
 				url: socket.wp_rest.root + socket.wp_rest.api_base + '/option',
 				method: 'POST',
 				beforeSend: function (xhr) {
-					xhr.setRequestHeader('X-WP-Nonce', socket.wp_rest.nonce);
+					xhr.setRequestHeader('X-WP-Nonce', socket.wp_rest.nonce)
 				},
 				data: {
 					'socket_nonce': socket.wp_rest.socket_nonce,
@@ -141,43 +153,43 @@ class SocketGallery extends React.Component {
 					value: component.state.value.join(',')
 				}
 			}).done(function (response) {
-				component.props.setupLoadingFlag( false );
+				component.props.setupLoadingFlag(false)
 			}).error(function (err) {
-				console.log(err);
-				component.props.setupLoadingFlag( false );
-			});
-		}, 1000 );
+				console.log(err)
+				component.props.setupLoadingFlag(false)
+			})
+		}, 1000)
 	}
 
 	handleOpen = (e) => {
 		let component = this,
-			name = component.props.name;
+			name = component.props.name
 
-		component.state.value_on_open = component.state.value;
-		e.preventDefault();
-		component.frame = wp.media.socketgallery[component.props.name].frame();
-		component.frame.open();
+		component.state.value_on_open = component.state.value
+		e.preventDefault()
+		component.frame = wp.media.socketgallery[component.props.name].frame()
+		component.frame.open()
 
-		if ( typeof component.frame.socketbound === "undefined" ) {
+		if (typeof component.frame.socketbound === 'undefined') {
 			component.frame.on('close', function () {
-				component.onclose( name );
-				component.frame = null;
-			});
-			component.frame.socketbound = true;
+				component.onclose(name)
+				component.frame = null
+			})
+			component.frame.socketbound = true
 		}
 	}
 
-	onclose( name ){
+	onclose (name) {
 		let component = this
 
-		component.props.setupLoadingFlag( true )
+		component.props.setupLoadingFlag(true)
 
 		setTimeout(function () {
 			jQuery.ajax({
 				url: socket.wp_rest.root + socket.wp_rest.api_base + '/option',
 				method: 'POST',
 				beforeSend: function (xhr) {
-					xhr.setRequestHeader('X-WP-Nonce', socket.wp_rest.nonce);
+					xhr.setRequestHeader('X-WP-Nonce', socket.wp_rest.nonce)
 				},
 				data: {
 					'socket_nonce': socket.wp_rest.socket_nonce,
@@ -185,20 +197,20 @@ class SocketGallery extends React.Component {
 					value: component.state.value.join(',')
 				}
 			}).done(function (response) {
-				component.props.setupLoadingFlag( false );
+				component.props.setupLoadingFlag(false)
 			}).error(function (err) {
-				console.log(err);
-				component.props.setupLoadingFlag( false );
-			});
-		}, 1000 );
+				console.log(err)
+				component.props.setupLoadingFlag(false)
+			})
+		}, 1000)
 	}
 
-	componentWillMount() {
-		let component = this;
+	componentWillMount () {
+		let component = this
 
-		if ( isEmpty( component.state.attachments ) && ! isEmpty( component.state.value ) ) {
-			var attachments = [];
-			var res = component.getSelection( component.state.value.join(',') );
+		if (isEmpty(component.state.attachments) && !isEmpty(component.state.value)) {
+			var attachments = []
+			var res = component.getSelection(component.state.value.join(','))
 			// },500);
 			// just wait a sec
 			// setTimeout(function () {
@@ -209,14 +221,14 @@ class SocketGallery extends React.Component {
 		}
 	}
 
-	initMediaModal() {
-		let component = this;
+	initMediaModal () {
+		let component = this
 
 		wp.media.socketgallery[component.props.name] = {
 			frame: function () {
-				if (this._frame) return this._frame;
+				if (this._frame) return this._frame
 
-				let selection = this.select();
+				let selection = this.select()
 
 				this._frame = wp.media({
 					className: 'media-frame no-sidebar',
@@ -235,24 +247,24 @@ class SocketGallery extends React.Component {
 					selection: selection
 				})
 
-				this._frame.on('ready', this.ready);
-				this._frame.on('open', this.open);
-				this._frame.on('update', this.update);
+				this._frame.on('ready', this.ready)
+				this._frame.on('open', this.open)
+				this._frame.on('update', this.update)
 
-				return this._frame;
+				return this._frame
 			},
 
 			ready: function () {
-				jQuery('.media-modal').addClass('no-sidebar smaller');
+				jQuery('.media-modal').addClass('no-sidebar smaller')
 			},
 
 			open: function () {
-				console.log(' open ');
+				console.log(' open ')
 			},
 
-			close: function ( cb ) {
-				cb();
-				wp.media.socketgallery = [];
+			close: function (cb) {
+				cb()
+				wp.media.socketgallery = []
 			},
 
 			update: function () {
@@ -260,86 +272,86 @@ class SocketGallery extends React.Component {
 					controller = wp.media.socketgallery[component.props.name]._frame.states.get('gallery-edit'),
 					library = controller.get('library'),
 					$return = [],
-					ids = library.pluck('id');
+					ids = library.pluck('id')
 
 				component.setState({value: ids}, function () {
-					controller.reset();
-				});
+					controller.reset()
+				})
 			},
 
 			// Gets initial gallery-edit images. Function modified from wp.media.gallery.edit
 			// in wp-includes/js/media-editor.js.source.html
 			select: function () {
 				let shortcode = wp.shortcode.next('gallery', '[gallery ids="1"'),
-					attachments, selection;
+					attachments, selection
 
-				if ( ! isEmpty( component.state.value ) ) {
+				if (!isEmpty(component.state.value)) {
 					shortcode = wp.shortcode.next('gallery', '[gallery ids="' + component.state.value + '"]')
 				}
 
 				// Bail if we didn't match the shortcode or all of the content.
-				if (!shortcode) return;
+				if (!shortcode) return
 
 				// Ignore the rest of the match object.
-				shortcode = shortcode.shortcode;
+				shortcode = shortcode.shortcode
 
-				attachments = wp.media.gallery.attachments(shortcode);
+				attachments = wp.media.gallery.attachments(shortcode)
 				selection = new wp.media.model.Selection(attachments.models, {
 					props: attachments.props.toJSON(),
 					multiple: true
-				});
+				})
 
-				selection.gallery = attachments.gallery;
+				selection.gallery = attachments.gallery
 
 				// Fetch the query's attachments, and then break ties from the
 				// query to allow for sorting.
 				selection.more().done(function () {
 					// Break ties with the query.
-					selection.props.set({ query: false });
-					selection.unmirror();
-					selection.props.unset('orderby');
-				});
+					selection.props.set({query: false})
+					selection.unmirror()
+					selection.props.unset('orderby')
+				})
 
-				return selection;
+				return selection
 			},
-		};
+		}
 	}
 
-	getSelection ( idsString ) {
+	getSelection (idsString) {
 		let component = this,
 			shortcode = wp.shortcode.next('gallery', '[gallery ids="1"]'),
-			attachments, selection;
+			attachments, selection
 
-		if ( ! isEmpty( component.state.value ) ) {
+		if (!isEmpty(component.state.value)) {
 			shortcode = wp.shortcode.next('gallery', '[gallery ids="' + component.state.value + '"]')
 		}
 
 		// Bail if we didn't match the shortcode or all of the content.
-		if (!shortcode) return;
+		if (!shortcode) return
 
 		// Ignore the rest of the match object.
-		shortcode = shortcode.shortcode;
+		shortcode = shortcode.shortcode
 
-		attachments = wp.media.gallery.attachments(shortcode);
+		attachments = wp.media.gallery.attachments(shortcode)
 		selection = new wp.media.model.Selection(attachments.models, {
 			props: attachments.props.toJSON(),
 			multiple: true
-		});
+		})
 
-		selection.gallery = attachments.gallery;
+		selection.gallery = attachments.gallery
 
 		// Fetch the query's attachments, and then break ties from the
 		// query to allow for sorting.
 		selection.more().done(function () {
 			// Break ties with the query.
-			selection.props.set({query: false});
-			selection.unmirror();
-			selection.props.unset('orderby');
+			selection.props.set({query: false})
+			selection.unmirror()
+			selection.props.unset('orderby')
 
-			component.setState( { attachments: selection.models } );
-		});
+			component.setState({attachments: selection.models})
+		})
 
-		return selection;
+		return selection
 	}
 }
 
@@ -349,4 +361,4 @@ SocketGallery.propTypes = {
 	setupLoadingFlag: PropTypes.func
 }
 
-export default SocketGallery;
+export default SocketGallery

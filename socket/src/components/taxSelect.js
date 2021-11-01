@@ -1,4 +1,4 @@
-import React from "react"
+import React from 'react'
 import PropTypes from 'prop-types'
 import {
 	Dropdown,
@@ -9,9 +9,9 @@ import isUndefined from 'lodash/isUndefined'
 
 class SocketTaxSelect extends React.Component {
 
-	constructor(props) {
+	constructor (props) {
 		// this makes the this
-		super(props);
+		super(props)
 
 		// get the current state localized by wordpress
 		this.state = {
@@ -19,22 +19,22 @@ class SocketTaxSelect extends React.Component {
 			terms: [],
 			name: null,
 			value: this.props.value
-		};
+		}
 
-		this.handleChange = this.handleChange.bind(this);
+		this.handleChange = this.handleChange.bind(this)
 	}
 
-	render() {
+	render () {
 		let component = this,
 			output = null,
 			value = this.props.value,
-			placeholder = this.props.placeholder || 'Select';
+			placeholder = this.props.placeholder || 'Select'
 
-		if ( isEmpty( value ) ) {
+		if (isEmpty(value)) {
 			value = []
 		}
 
-		output = <Form.Field className="post_type_select" >
+		output = <Form.Field className="post_type_select">
 			<Dropdown
 				placeholder={placeholder}
 				fluid
@@ -50,19 +50,19 @@ class SocketTaxSelect extends React.Component {
 			/>
 		</Form.Field>
 
-		return output;
+		return output
 	}
 
-	handleChange = (e, { value }) => {
+	handleChange = (e, {value}) => {
 		let component = this
 
-		component.props.setupLoadingFlag( true )
+		component.props.setupLoadingFlag(true)
 
 		jQuery.ajax({
-			url: socket.wp_rest.root + socket.wp_rest.api_base +  '/option',
+			url: socket.wp_rest.root + socket.wp_rest.api_base + '/option',
 			method: 'POST',
 			beforeSend: function (xhr) {
-				xhr.setRequestHeader('X-WP-Nonce', socket.wp_rest.nonce);
+				xhr.setRequestHeader('X-WP-Nonce', socket.wp_rest.nonce)
 			},
 			data: {
 				'socket_nonce': socket.wp_rest.socket_nonce,
@@ -70,42 +70,42 @@ class SocketTaxSelect extends React.Component {
 				value: value
 			}
 		}).done(function (response) {
-			component.props.setupLoadingFlag( false );
+			component.props.setupLoadingFlag(false)
 		}).error(function (err) {
-			console.log(err);
-			component.props.setupLoadingFlag( false );
-		});
+			console.log(err)
+			component.props.setupLoadingFlag(false)
+		})
 
-		this.setState({ value });
+		this.setState({value})
 	}
 
-	componentWillMount(){
-		if ( ! this.state.loading ) {
-			return false;
+	componentWillMount () {
+		if (!this.state.loading) {
+			return false
 		}
 
 		let component = this
 
-		wp.api.loadPromise.done( function() {
-			let query = {per_page: 100, taxonomy: 'categories'};
+		wp.api.loadPromise.done(function () {
+			let query = {per_page: 100, taxonomy: 'categories'}
 
 			if (!isUndefined(component.props.field.query)) {
-				query = {...query, ...component.props.field.query};
+				query = {...query, ...component.props.field.query}
 			}
 
 			if (isUndefined(query.taxonomy)) {
-				return;
+				return
 			}
 
-			let rest_base = query.taxonomy;
+			let rest_base = query.taxonomy
 
 			// check if this taxonomy has a different rest_base than the taxonomy name
-			if ( ! isUndefined( socket.wp.taxonomies[rest_base] ) && ! isEmpty( socket.wp.taxonomies[rest_base].rest_base ) ) {
-				rest_base = socket.wp.taxonomies[rest_base].rest_base;
+			if (!isUndefined(socket.wp.taxonomies[rest_base]) && !isEmpty(socket.wp.taxonomies[rest_base].rest_base)) {
+				rest_base = socket.wp.taxonomies[rest_base].rest_base
 			}
 
 			let terms = [],
-				url = socket.wp_rest.root + 'wp/v2/' + rest_base + '?per_page=' + query.per_page;
+				url = socket.wp_rest.root + 'wp/v2/' + rest_base + '?per_page=' + query.per_page
 
 			fetch(url)
 				.then((response) => {
@@ -114,23 +114,23 @@ class SocketTaxSelect extends React.Component {
 				.then((results) => {
 					{
 						Object.keys(results).map(function (i) {
-							let model = results[i];
+							let model = results[i]
 
 							if (!isUndefined(model.id)) {
-								let pre = '';
+								let pre = ''
 
-								if ( model.parent > 0 ) {
+								if (model.parent > 0) {
 									pre = ' –– '
 								}
 
-								terms.push({key: model.id, value: model.id.toString(), text: pre + model.name});
+								terms.push({key: model.id, value: model.id.toString(), text: pre + model.name})
 							}
 						})
 					}
 
-					component.setState({terms: terms, loading: false});
-				});
-		});
+					component.setState({terms: terms, loading: false})
+				})
+		})
 	}
 }
 
@@ -140,4 +140,4 @@ SocketTaxSelect.propTypes = {
 	setupLoadingFlag: PropTypes.func
 }
 
-export default SocketTaxSelect;
+export default SocketTaxSelect
