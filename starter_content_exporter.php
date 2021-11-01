@@ -87,6 +87,8 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		];
 
 		public function __construct() {
+			register_activation_hook( __FILE__, [ 'Starter_Content_Exporter', 'activate' ] );
+
 			add_action( 'init', [ $this, 'init_demo_exporter' ], 100050 );
 			add_filter( 'socket_config_for_starter_content_exporter', [ $this, 'add_socket_config' ] );
 
@@ -100,6 +102,13 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			// widgets
 			add_filter( 'pixcare_sce_widget_data_export_text', [ $this, 'prepare_text_widgets' ], 10, 1 );
 			add_filter( 'pixcare_sce_widget_data_export_nav_menu', [ $this, 'prepare_menu_widgets' ], 10, 1 );
+		}
+
+		/**
+		 * Do anything needed at plugin activation.
+		 */
+		public static function activate() {
+			flush_rewrite_rules();
 		}
 
 		public function init_demo_exporter() {
@@ -170,7 +179,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			];
 
 			$config['sockets']['export_post_types'] = [
-				'label' => 'Posts & Taxonomies',
+				'label' => 'Content (posts & taxonomies)',
 				'items' => [],
 			];
 
@@ -227,27 +236,31 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			}
 
 			$config['sockets']['export_options'] = [
-				'label' => 'Site Options and Theme Mods',
+				'label' => 'Site Options and Theme-Mods',
 				'items' => [
 					'exported_pre_options'    => [
 						'type'        => 'tags',
-						'label'       => 'Pre-content Import Options Keys',
-						'description' => 'Select which site options keys should be imported before importing the content.',
+						'label'       => 'Pre Content-Import Site Options Keys',
+						'description' => 'Select which site options keys should be imported before importing the content. There is no need to include must-import options.',
+						'options' => $this->get_options_select_list(),
 					],
 					'exported_post_options'   => [
 						'type'        => 'tags',
-						'label'       => 'Post-content Import Options Keys',
-						'description' => 'Select which site options keys should be imported after the content has been imported.',
+						'label'       => 'Post Content-Import Site Options Keys',
+						'description' => 'Select which site options keys should be imported after the content has been imported. There is no need to include must-import options.',
+						'options' => $this->get_options_select_list(),
 					],
 					'exported_pre_theme_mods' => [
 						'type'        => 'tags',
-						'label'       => 'Pre-content Import Theme-Mods Keys',
-						'description' => 'Select which theme_mod keys should be imported before importing content.',
+						'label'       => 'Pre Content-Import Theme-Mods Keys',
+						'description' => 'Select which theme_mod keys should be imported before importing content. There is no need to include must-import theme_mods.',
+						'options' => $this->get_theme_mods_select_list(),
 					],
 					'ignored_post_theme_mods' => [
 						'type'        => 'tags',
 						'label'       => 'Ignored Theme-Mods Keys',
-						'description' => 'All the theme mods are exported after import, but you can chose to ignore certain keys.',
+						'description' => '<strong>All remaining theme mods are imported after the content import,</strong> but you can chose to ignore certain keys.',
+						'options' => $this->get_theme_mods_select_list(),
 					],
 				],
 			];
@@ -271,7 +284,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 			// Must-Import post types.
 			$config['sockets']['export_mi_post_types'] = [
-				'label' => 'Posts & Taxonomies',
+				'label' => 'Content (posts & taxonomies)',
 				'items' => [],
 			];
 			foreach ( $post_types as $post_type => $post_type_config ) {
@@ -326,32 +339,122 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 			// Must-Import options.
 			$config['sockets']['export_mi_options'] = [
-				'label' => 'Site Options and Theme Mods',
+				'label' => 'Site Options and Theme-Mods',
 				'items' => [
 					'mi_exported_pre_options'     => [
 						'type'        => 'tags',
-						'label'       => 'Pre-content Import Options Keys',
-						'description' => 'Select which site options keys should be imported before importing the content.',
+						'label'       => 'Pre Content-Import Site Options Keys',
+						'description' => 'Select which site options keys should be imported before importing the must-import content.',
+						'options' => $this->get_options_select_list(),
 					],
 					'mi_exported_post_options'    => [
 						'type'        => 'tags',
-						'label'       => 'Post-content Import Options Keys',
-						'description' => 'Select which site options keys should be imported after the content has been imported.',
+						'label'       => 'Post Content-Import Site Options Keys',
+						'description' => 'Select which site options keys should be imported after the must-import content has been imported.',
+						'options' => $this->get_options_select_list(),
 					],
 					'mi_exported_pre_theme_mods'  => [
 						'type'        => 'tags',
-						'label'       => 'Pre-content Import Theme-Mods Keys',
-						'description' => 'Select which theme_mod keys should be imported before importing content.',
+						'label'       => 'Pre Content-Import Theme-Mods Keys',
+						'description' => 'Select which theme_mod keys should be imported before importing must-import content.',
+						'options' => $this->get_theme_mods_select_list(),
 					],
 					'mi_exported_post_theme_mods' => [
 						'type'        => 'tags',
-						'label'       => 'Post-content Import Theme-Mods Keys',
-						'description' => 'Select which theme_mod keys should be imported after importing content.',
+						'label'       => 'Post Content-Import Theme-Mods Keys',
+						'description' => 'Select which theme_mod keys should be imported after importing must-import content.',
+						'options' => $this->get_theme_mods_select_list(),
 					],
 				],
 			];
 
 			return $config;
+		}
+
+		/**
+		 * Get the list of site options to be available in selects.
+		 *
+		 * We will not include all site options, but only those that we believe are relevant for export.
+		 *
+		 * Others may be manually "selected" if the control allows it (like the `tags` control does).
+		 *
+		 * @return array An array with key => value pairs. The key is the select option value, while the value is the select option label.
+		 */
+		protected function get_options_select_list() : array {
+			$select_options = [];
+
+			// Include the current theme theme_mods entry.
+			$current_theme_stylesheet = get_stylesheet();
+			// Allow for PixelgradeCare logic to take effect (mainly the LT themes).
+			if ( class_exists( 'PixelgradeCare_Admin') && method_exists( 'PixelgradeCare_Admin', 'get_theme_main_product_sku' ) ) {
+				$current_theme_stylesheet = PixelgradeCare_Admin::get_theme_main_product_sku();
+			}
+			$select_options[ "theme_mods_$current_theme_stylesheet" ] = "theme_mods_$current_theme_stylesheet";
+
+			$options = wp_load_alloptions();
+
+			// If the theme's Style Manager option key is present, include it.
+			// This key is used when Style Manager is instructed to save customization option in the site options instead of theme_mods.
+			if ( function_exists( '\Pixelgrade\StyleManager\get_options_key' ) ) {
+				$sm_options_key = \Pixelgrade\StyleManager\get_options_key();
+				if ( isset( $options[ $sm_options_key ] ) ) {
+					$select_options[ $sm_options_key ] = $sm_options_key;
+				}
+
+				// Include all relevant sub-entries.
+				if ( ! empty( $options[ $sm_options_key ] ) ) {
+					foreach ( $options[ $sm_options_key ] as $mod_name => $mod_value ) {
+						$select_options[ $sm_options_key . '[' . $mod_name . ']' ] = $sm_options_key . '[' . $mod_name . ']';
+					}
+				}
+			}
+
+			// Include all Style Manager options.
+			foreach ( $options as $option_name => $option_value ) {
+				if ( 0 === strpos( $option_name, 'sm_' ) ) {
+					$select_options[ $option_name ] = $option_name;
+				}
+			}
+
+			return $select_options;
+		}
+
+		/**
+		 * Get the list of theme_mods options to be available in selects.
+		 *
+		 * We will not include all theme_mods options, but only those that we believe are relevant for export.
+		 *
+		 * Others may be manually "selected" if the control allows it (like the `tags` control does).
+		 *
+		 * @return array
+		 */
+		protected function get_theme_mods_select_list() : array {
+
+			$select_options = [];
+
+			$theme_mods = get_theme_mods();
+
+			// Include all theme_mods options, except those that should be ignored.
+			foreach ( $theme_mods as $mod_name => $mod_value ) {
+				if ( ! in_array( $mod_name, $this->ignored_theme_mods ) ) {
+					$select_options[ $mod_name ] = $mod_name;
+				}
+			}
+
+			// If the theme's Style Manager option key is present, include it.
+			// This key is used when Style Manager is instructed to save customization option in the site options instead of theme_mods.
+			if ( function_exists( '\Pixelgrade\StyleManager\get_options_key' ) ) {
+				$sm_options_key = \Pixelgrade\StyleManager\get_options_key();
+
+				// Include all relevant sub-entries.
+				if ( ! empty( $theme_mods[ $sm_options_key ] ) ) {
+					foreach ( $theme_mods[ $sm_options_key ] as $mod_name => $mod_value ) {
+						$select_options[ $sm_options_key . '[' . $mod_name . ']' ] = $sm_options_key . '[' . $mod_name . ']';
+					}
+				}
+			}
+
+			return $select_options;
 		}
 
 		/**
@@ -361,22 +464,25 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		 * - data
 		 */
 		public function add_rest_routes_api_v2() {
-
+			/**
+			 * Register endpoints for fetching the overall data.
+			 */
 			register_rest_route( 'sce/v2', '/mi-data', [
 				'methods'  => WP_REST_Server::READABLE,
 				'callback' => [ $this, 'rest_export_mi_data_v2' ],
 			] );
-
 			register_rest_route( 'sce/v2', '/data', [
 				'methods'  => WP_REST_Server::READABLE,
 				'callback' => [ $this, 'rest_export_data_v2' ],
 			] );
 
+			/**
+			 * Register endpotins for fetching individual data details.
+			 */
 			register_rest_route( 'sce/v2', '/media', [
 				'methods'  => WP_REST_Server::READABLE,
 				'callback' => [ $this, 'rest_export_media_v2' ],
 			] );
-
 			register_rest_route( 'sce/v2', '/posts', [
 				'methods'  => WP_REST_Server::CREATABLE,
 				'callback' => [ $this, 'rest_export_posts_v2' ],
@@ -386,7 +492,6 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 					],
 				],
 			] );
-
 			register_rest_route( 'sce/v2', '/terms', [
 				'methods'  => WP_REST_Server::CREATABLE,
 				'callback' => [ $this, 'rest_export_terms_v2' ],
@@ -396,7 +501,6 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 					],
 				],
 			] );
-
 			register_rest_route( 'sce/v2', '/widgets', [
 				'methods'  => WP_REST_Server::CREATABLE,
 				'callback' => [ $this, 'rest_export_widgets_v2' ],
@@ -855,19 +959,22 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		 * @return array
 		 */
 		protected function get_mi_pre_settings(): array {
-			$mods    = get_theme_mods();
 			$options = get_option( 'starter_content_exporter' );
 
-			$return = array(
+			$settings = array(
 				'options' => [],
 				'mods'    => [],
 			);
 
 			// Make the selected options keys exportable.
-			$mi_pre_options = $this->pre_settings['mi_options'];
 			if ( ! empty( $options['mi_exported_pre_options'] ) ) {
-				// Legacy, keep pre_settings until all the demos get their keys in UI
-				$mi_pre_options = array_merge( $mi_pre_options, $options['mi_exported_pre_options'] );
+				$mi_pre_options = $options['mi_exported_pre_options'];
+			} else {
+				$mi_pre_options = [];
+			}
+			if ( ! empty( $this->pre_settings['mi_options'] ) ) {
+				// Merge with any default options.
+				$mi_pre_options = array_merge( $this->pre_settings['mi_options'], $mi_pre_options );
 			}
 
 			foreach ( $mi_pre_options as $key ) {
@@ -875,23 +982,47 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 				// We need to check if the option key really exists and ignore the nonexistent.
 				if ( $option_value !== null ) {
-					$return['options'][ $key ] = $option_value;
+					$settings['options'][ $key ] = $option_value;
 				}
 			}
 
-			$mi_theme_mods = $this->pre_settings['mods'];
 			if ( ! empty( $options['mi_exported_pre_theme_mods'] ) ) {
-				$mi_theme_mods = array_merge( $mi_theme_mods, $options['mi_exported_pre_theme_mods'] );
+				$mi_theme_mods = $options['mi_exported_pre_theme_mods'];
+			} else {
+				$mi_theme_mods = [];
+			}
+			if ( ! empty( $this->pre_settings['mi_mods'] ) ) {
+				$mi_theme_mods = array_merge( $this->pre_settings['mi_mods'], $options['mi_exported_pre_theme_mods'] );
 			}
 
-			// @TODO make this work with values from UI
+			$current_theme_mods = get_theme_mods();
 			foreach ( $mi_theme_mods as $key ) {
-				if ( isset( $mods[ $key ] ) ) {
-					$return['mods'][ $key ] = $mods[ $key ];
+				if ( isset( $current_theme_mods[ $key ] ) ) {
+					$settings['mods'][ $key ] = $current_theme_mods[ $key ];
+					continue;
+				}
+
+				// Check if the key refers to a sub-entry.
+				if ( false !== strpos( $key, '[' ) ) {
+					preg_match( '#(.+)\[(?:[\'\"]*)([^\'\"]+)(?:[\'\"]*)\]#', $key, $matches );
+
+					if ( ! empty( $matches ) && ! empty( $matches[1] )
+					     && ! empty( $matches[2] )
+						 && isset( $current_theme_mods[ $matches[1] ] )
+					     && isset( $current_theme_mods[ $matches[1] ][ $matches[2] ] )
+					) {
+
+						if ( ! isset( $settings['mods'][ $matches[1] ] ) ) {
+							$settings['mods'][ $matches[1] ] = [];
+						}
+						if ( ! isset( $settings['mods'][ $matches[1] ][ $matches[2] ] ) ) {
+							$settings['mods'][ $matches[1] ][ $matches[2] ] = $current_theme_mods[ $matches[1] ][ $matches[2] ];
+						}
+					}
 				}
 			}
 
-			return $return;
+			return $settings;
 		}
 
 		/**
@@ -899,29 +1030,15 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		 * @return array
 		 */
 		protected function get_mi_post_settings(): array {
-			$mods    = get_theme_mods();
 			$options = get_option( 'starter_content_exporter' );
 
-			$returned_options = [
-				// Legacy, keep it until all the demos get their keys in UI.
+			$settings = [
 				'options' => [
 					'page_on_front'  => get_option( 'page_on_front' ),
 					'page_for_posts' => get_option( 'page_for_posts' ),
 				],
 				'mods'    => [],
 			];
-
-
-			$mi_post_theme_mods = [];
-			if ( ! empty( $options['mi_exported_post_theme_mods'] ) ) {
-				$mi_post_theme_mods = array_merge( $mi_post_theme_mods, $options['mi_exported_post_theme_mods'] );
-			}
-
-			foreach ( $mi_post_theme_mods as $key ) {
-				if ( isset( $mods[ $key ] ) ) {
-					$return['mods'][ $key ] = $mods[ $key ];
-				}
-			}
 
 			// Make the selected options keys exportable.
 			if ( ! empty( $options['mi_exported_post_options'] ) ) {
@@ -930,19 +1047,43 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 					// We need to check if the option key really exists and ignore the nonexistent.
 					if ( $option_value !== null ) {
-						$returned_options['options'][ $option ] = $option_value;
+						$settings['options'][ $option ] = $option_value;
 					}
 				}
 			}
 
-			$featured_content = get_option( 'featured-content' );
-			if ( ! empty( $featured_content ) ) {
-				// @TODO maybe replace this with something imported
-				unset( $featured_content['tag-id'] );
-				$returned_options['options']['featured-content'] = $featured_content;
+			$mi_post_theme_mods = [];
+			if ( ! empty( $options['mi_exported_post_theme_mods'] ) ) {
+				$mi_post_theme_mods = array_merge( $mi_post_theme_mods, $options['mi_exported_post_theme_mods'] );
+			}
+			$current_theme_mods = get_theme_mods();
+			foreach ( $mi_post_theme_mods as $key ) {
+				if ( isset( $current_theme_mods[ $key ] ) ) {
+					$settings['mods'][ $key ] = $current_theme_mods[ $key ];
+					continue;
+				}
+
+				// Check if the key refers to a sub-entry.
+				if ( false !== strpos( $key, '[' ) ) {
+					preg_match( '#(.+)\[(?:[\'\"]*)([^\'\"]+)(?:[\'\"]*)\]#', $key, $matches );
+
+					if ( ! empty( $matches ) && ! empty( $matches[1] )
+					     && ! empty( $matches[2] )
+					     && isset( $current_theme_mods[ $matches[1] ] )
+					     && isset( $current_theme_mods[ $matches[1] ][ $matches[2] ] )
+					) {
+
+						if ( ! isset( $settings['mods'][ $matches[1] ] ) ) {
+							$settings['mods'][ $matches[1] ] = [];
+						}
+						if ( ! isset( $settings['mods'][ $matches[1] ][ $matches[2] ] ) ) {
+							$settings['mods'][ $matches[1] ][ $matches[2] ] = $current_theme_mods[ $matches[1] ][ $matches[2] ];
+						}
+					}
+				}
 			}
 
-			return $returned_options;
+			return $settings;
 		}
 
 		/**
@@ -950,42 +1091,70 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		 * @return array
 		 */
 		protected function get_pre_settings(): array {
-			$mods    = get_theme_mods();
 			$options = get_option( 'starter_content_exporter' );
 
-			$return = array(
+			$settings = array(
 				'options' => [],
 				'mods'    => [],
 			);
 
-			// make the selected options keys exportable
+			// Make the selected options keys exportable.
 			if ( ! empty( $options['exported_pre_options'] ) ) {
-				// Legacy, keep pre_settings until all the demos get their keys in UI
-				$this->pre_settings['options'] = array_merge( $this->pre_settings['options'], $options['exported_pre_options'] );
+				$pre_options = $options['exported_pre_options'];
+			} else {
+				$pre_options = [];
+			}
+			if ( ! empty( $this->pre_settings['options'] ) ) {
+				// Merge with any default options.
+				$pre_options = array_merge( $this->pre_settings['options'], $pre_options );
 			}
 
-			foreach ( $this->pre_settings['options'] as $key ) {
+			foreach ( $pre_options as $key ) {
 				$option_value = get_option( $key, null );
 
-				// we need to check if the option key really exists and ignore the unexistent
+				// We need to check if the option key really exists and ignore the nonexistent.
 				if ( $option_value !== null ) {
-					$return['options'][ $key ] = $option_value;
+					$settings['options'][ $key ] = $option_value;
 				}
 			}
 
 			if ( ! empty( $options['exported_pre_theme_mods'] ) ) {
-				$this->pre_settings['mods'] = array_merge( $this->pre_settings['mods'], $options['exported_pre_theme_mods'] );
+				$theme_mods_keys = $options['exported_pre_theme_mods'];
+			} else {
+				$theme_mods_keys = [];
+			}
+			if ( ! empty( $this->pre_settings['mods'] ) ) {
+				$theme_mods_keys = array_merge( $this->pre_settings['mods'], $options['mi_exported_pre_theme_mods'] );
 			}
 
-			// @TODO make this work with values from UI
-			foreach ( $this->pre_settings['mods'] as $key ) {
-				if ( isset( $mods[ $key ] ) ) {
-					$return['mods'][ $key ]     = $mods[ $key ];
-					$this->ignored_theme_mods[] = $key;
+			$current_theme_mods = get_theme_mods();
+			foreach ( $theme_mods_keys as $key ) {
+				if ( isset( $current_theme_mods[ $key ] ) ) {
+					$settings['mods'][ $key ] = $current_theme_mods[ $key ];
+					continue;
+				}
+
+				// Check if the key refers to a sub-entry.
+				if ( false !== strpos( $key, '[' ) ) {
+					preg_match( '#(.+)\[(?:[\'\"]*)([^\'\"]+)(?:[\'\"]*)\]#', $key, $matches );
+
+					if ( ! empty( $matches ) && ! empty( $matches[1] )
+					     && ! empty( $matches[2] )
+					     && isset( $current_theme_mods[ $matches[1] ] )
+					     && isset( $current_theme_mods[ $matches[1] ][ $matches[2] ] )
+					) {
+
+						if ( ! isset( $settings['mods'][ $matches[1] ] ) ) {
+							$settings['mods'][ $matches[1] ] = [];
+						}
+						if ( ! isset( $settings['mods'][ $matches[1] ][ $matches[2] ] ) ) {
+							$settings['mods'][ $matches[1] ][ $matches[2] ] = $current_theme_mods[ $matches[1] ][ $matches[2] ];
+						}
+					}
 				}
 			}
 
-			return $return;
+			return $settings;
 		}
 
 		/**
@@ -993,63 +1162,78 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		 * @return array
 		 */
 		protected function get_post_settings(): array {
-			$mods    = get_theme_mods();
 			$options = get_option( 'starter_content_exporter' );
 
-
-			if ( ! empty( $options['ignored_post_theme_mods'] ) ) {
-				$this->ignored_theme_mods = array_merge( $this->ignored_theme_mods, $options['ignored_post_theme_mods'] );
-			}
-			// remove the ignored theme mods keys
-			$exported_mods = array_diff_key( $mods, array_flip( $this->ignored_theme_mods ) );
-
-			// Remove the ignored subtheme mods keys, that haven't already been removed.
-			if ( ! empty( $this->ignored_theme_mods ) ) {
-				// We will also treat ignored theme mods that target a specific suboption, like 'rosa_options[something]'
-				foreach ( $this->ignored_theme_mods as $ignored_theme_mod ) {
-					if ( false !== strpos( $ignored_theme_mod, '[' ) ) {
-						preg_match( '#(.+)\[(?:[\'\"]*)([^\'\"]+)(?:[\'\"]*)\]#', $ignored_theme_mod, $matches );
-						if ( ! empty( $matches ) && ! empty( $matches[1] ) &&
-						     ! empty( $matches[2] ) &&
-						     isset( $exported_mods[ $matches[1] ] ) &&
-						     isset( $exported_mods[ $matches[1] ][ $matches[2] ] ) ) {
-
-							unset( $exported_mods[ $matches[1] ][ $matches[2] ] );
-						}
-					}
-				}
-			}
-
-			$returned_options = [
-				// Legacy, keep it until all the demos get their keys in UI
+			$settings = [
 				'options' => [
 					'page_on_front'  => get_option( 'page_on_front' ),
 					'page_for_posts' => get_option( 'page_for_posts' ),
 				],
-				'mods'    => $exported_mods,
+				'mods'    => [],
 			];
 
-			// make the selected options keys exportable
+			$ignored_theme_mods = $this->ignored_theme_mods;
+			// First, add the manually ignored theme_mods.
+			if ( ! empty( $options['ignored_post_theme_mods'] ) ) {
+				$ignored_theme_mods = array_merge( $ignored_theme_mods, $options['ignored_post_theme_mods'] );
+			}
+			// Now, add the theme mods that should be imported before content-import.
+			$pre_settings = $this->get_pre_settings();
+			if ( ! empty( $pre_settings['mods'] ) ) {
+				$ignored_theme_mods = array_merge( $ignored_theme_mods, array_keys( $pre_settings['mods'] ) );
+			}
+			$ignored_theme_mods = array_unique( $ignored_theme_mods );
+
+			$current_theme_mods = get_theme_mods();
+			if ( empty( $current_theme_mods ) ) {
+				$current_theme_mods = [];
+			}
+			// Remove the ignored theme mods.
+			$theme_mods_to_export = array_diff_key( $current_theme_mods, array_flip( $ignored_theme_mods ) );
+
+			// Remove the ignored theme_mods sub-entries (like 'rosa_options[something]'), that haven't already been removed.
+			foreach ( $ignored_theme_mods as $ignored_theme_mod ) {
+				if ( false === strpos( $ignored_theme_mod, '[' ) ) {
+					continue;
+				}
+
+				preg_match( '#(.+)\[(?:[\'\"]*)([^\'\"]+)(?:[\'\"]*)\]#', $ignored_theme_mod, $matches );
+
+				if ( ! empty( $matches )
+				     && ! empty( $matches[1] )
+				     && ! empty( $matches[2] )
+				     && isset( $theme_mods_to_export[ $matches[1] ] )
+				     && isset( $theme_mods_to_export[ $matches[1] ][ $matches[2] ] )
+				) {
+
+					unset( $theme_mods_to_export[ $matches[1] ][ $matches[2] ] );
+				}
+			}
+
+			if ( ! empty( $theme_mods_to_export ) ) {
+				$settings['mods'] = $theme_mods_to_export;
+			}
+
+			// Make the selected options keys exportable.
 			if ( ! empty( $options['exported_post_options'] ) ) {
 				foreach ( $options['exported_post_options'] as $option ) {
 					$option_value = get_option( $option, null );
 
 					// we need to check if the option key really exists and ignore the nonexistent
 					if ( $option_value !== null ) {
-						$returned_options['options'][ $option ] = $option_value;
+						$settings['options'][ $option ] = $option_value;
 					}
 				}
 			}
 
 			$featured_content = get_option( 'featured-content' );
-
 			if ( ! empty( $featured_content ) ) {
 				// @TODO maybe replace this with something imported
 				unset( $featured_content['tag-id'] );
-				$returned_options['options']['featured-content'] = $featured_content;
+				$settings['options']['featured-content'] = $featured_content;
 			}
 
-			return $returned_options;
+			return $settings;
 		}
 
 		public function prepare_text_widgets( array $widget_data ): array {
