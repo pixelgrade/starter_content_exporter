@@ -356,13 +356,13 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 					'mi_exported_pre_theme_mods'  => [
 						'type'        => 'tags',
 						'label'       => 'Pre Content-Import Theme-Mods Keys',
-						'description' => 'Select which theme_mod keys should be imported before importing must-import content.',
+						'description' => 'Select which theme_mod keys should be imported before importing must-import content. You can use sub-keys in the form: "rosa_options[\'content_font\']".',
 						'options' => $this->get_theme_mods_select_list(),
 					],
 					'mi_exported_post_theme_mods' => [
 						'type'        => 'tags',
 						'label'       => 'Post Content-Import Theme-Mods Keys',
-						'description' => 'Select which theme_mod keys should be imported after importing must-import content.',
+						'description' => 'Select which theme_mod keys should be imported after importing must-import content. You can use sub-keys in the form: "rosa_options[\'content_font\']".',
 						'options' => $this->get_theme_mods_select_list(),
 					],
 				],
@@ -978,6 +978,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			}
 
 			foreach ( $mi_pre_options as $key ) {
+				$key = trim( $key );
 				$option_value = get_option( $key, null );
 
 				// We need to check if the option key really exists and ignore the nonexistent.
@@ -997,6 +998,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 			$current_theme_mods = get_theme_mods();
 			foreach ( $mi_theme_mods as $key ) {
+				$key = trim( $key );
 				if ( isset( $current_theme_mods[ $key ] ) ) {
 					$settings['mods'][ $key ] = $current_theme_mods[ $key ];
 					continue;
@@ -1006,18 +1008,14 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				if ( false !== strpos( $key, '[' ) ) {
 					preg_match( '#(.+)\[(?:[\'\"]*)([^\'\"]+)(?:[\'\"]*)\]#', $key, $matches );
 
-					if ( ! empty( $matches ) && ! empty( $matches[1] )
+					if ( ! empty( $matches )
+					     && ! empty( $matches[1] )
 					     && ! empty( $matches[2] )
 						 && isset( $current_theme_mods[ $matches[1] ] )
 					     && isset( $current_theme_mods[ $matches[1] ][ $matches[2] ] )
 					) {
 
-						if ( ! isset( $settings['mods'][ $matches[1] ] ) ) {
-							$settings['mods'][ $matches[1] ] = [];
-						}
-						if ( ! isset( $settings['mods'][ $matches[1] ][ $matches[2] ] ) ) {
-							$settings['mods'][ $matches[1] ][ $matches[2] ] = $current_theme_mods[ $matches[1] ][ $matches[2] ];
-						}
+						$settings['mods'][ $key ] = $current_theme_mods[ $matches[1] ][ $matches[2] ];
 					}
 				}
 			}
@@ -1043,6 +1041,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			// Make the selected options keys exportable.
 			if ( ! empty( $options['mi_exported_post_options'] ) ) {
 				foreach ( $options['mi_exported_post_options'] as $option ) {
+					$option = trim( $option );
 					$option_value = get_option( $option, null );
 
 					// We need to check if the option key really exists and ignore the nonexistent.
@@ -1058,6 +1057,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			}
 			$current_theme_mods = get_theme_mods();
 			foreach ( $mi_post_theme_mods as $key ) {
+				$key = trim( $key );
 				if ( isset( $current_theme_mods[ $key ] ) ) {
 					$settings['mods'][ $key ] = $current_theme_mods[ $key ];
 					continue;
@@ -1067,18 +1067,13 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				if ( false !== strpos( $key, '[' ) ) {
 					preg_match( '#(.+)\[(?:[\'\"]*)([^\'\"]+)(?:[\'\"]*)\]#', $key, $matches );
 
-					if ( ! empty( $matches ) && ! empty( $matches[1] )
+					if ( ! empty( $matches )
+					     && ! empty( $matches[1] )
 					     && ! empty( $matches[2] )
 					     && isset( $current_theme_mods[ $matches[1] ] )
 					     && isset( $current_theme_mods[ $matches[1] ][ $matches[2] ] )
 					) {
-
-						if ( ! isset( $settings['mods'][ $matches[1] ] ) ) {
-							$settings['mods'][ $matches[1] ] = [];
-						}
-						if ( ! isset( $settings['mods'][ $matches[1] ][ $matches[2] ] ) ) {
-							$settings['mods'][ $matches[1] ][ $matches[2] ] = $current_theme_mods[ $matches[1] ][ $matches[2] ];
-						}
+							$settings['mods'][ $key ] = $current_theme_mods[ $matches[1] ][ $matches[2] ];
 					}
 				}
 			}
@@ -1110,6 +1105,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			}
 
 			foreach ( $pre_options as $key ) {
+				$key = trim( $key );
 				$option_value = get_option( $key, null );
 
 				// We need to check if the option key really exists and ignore the nonexistent.
@@ -1129,6 +1125,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 			$current_theme_mods = get_theme_mods();
 			foreach ( $theme_mods_keys as $key ) {
+				$key = trim( $key );
 				if ( isset( $current_theme_mods[ $key ] ) ) {
 					$settings['mods'][ $key ] = $current_theme_mods[ $key ];
 					continue;
@@ -1217,6 +1214,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			// Make the selected options keys exportable.
 			if ( ! empty( $options['exported_post_options'] ) ) {
 				foreach ( $options['exported_post_options'] as $option ) {
+					$option = trim( $option );
 					$option_value = get_option( $option, null );
 
 					// we need to check if the option key really exists and ignore the nonexistent
