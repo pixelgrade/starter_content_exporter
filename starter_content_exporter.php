@@ -401,7 +401,8 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 					$select_options[ $sm_options_key ] = $sm_options_key;
 
 					// Include all relevant sub-entries.
-					if ( ! empty( $options[ $sm_options_key ] ) ) {
+					$options[ $sm_options_key ] = maybe_unserialize( $options[ $sm_options_key ] );
+					if ( ! empty( $options[ $sm_options_key ] ) && is_array( $options[ $sm_options_key ] ) ) {
 						foreach ( $options[ $sm_options_key ] as $mod_name => $mod_value ) {
 							$select_options[ $sm_options_key . '[' . $mod_name . ']' ] = $sm_options_key . '[' . $mod_name . ']';
 						}
