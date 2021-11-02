@@ -399,12 +399,12 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				$sm_options_key = \Pixelgrade\StyleManager\get_options_key();
 				if ( isset( $options[ $sm_options_key ] ) ) {
 					$select_options[ $sm_options_key ] = $sm_options_key;
-				}
 
-				// Include all relevant sub-entries.
-				if ( ! empty( $options[ $sm_options_key ] ) ) {
-					foreach ( $options[ $sm_options_key ] as $mod_name => $mod_value ) {
-						$select_options[ $sm_options_key . '[' . $mod_name . ']' ] = $sm_options_key . '[' . $mod_name . ']';
+					// Include all relevant sub-entries.
+					if ( ! empty( $options[ $sm_options_key ] ) ) {
+						foreach ( $options[ $sm_options_key ] as $mod_name => $mod_value ) {
+							$select_options[ $sm_options_key . '[' . $mod_name . ']' ] = $sm_options_key . '[' . $mod_name . ']';
+						}
 					}
 				}
 			}
