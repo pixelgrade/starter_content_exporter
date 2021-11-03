@@ -1,5 +1,13 @@
 {
 	"name": "starter_content_exporter",
+	"description": "Export site content for use as starter content.",
+	"repository": "git+https://github.com/pixelgrade/starter_content_exporter.git",
+	"author": "Pixelgrade",
+	"license": "GPL-2.0+",
+	"keywords": [
+		"Pixelgrade",
+		"Dashboard"
+	],
 	"devDependencies": {
 		"del": "^6.0.0",
 		"gulp": "^4.0.2",

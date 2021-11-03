@@ -471,10 +471,12 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			register_rest_route( 'sce/v2', '/mi-data', [
 				'methods'  => WP_REST_Server::READABLE,
 				'callback' => [ $this, 'rest_export_mi_data_v2' ],
+				'permission_callback' => '__return_true',
 			] );
 			register_rest_route( 'sce/v2', '/data', [
 				'methods'  => WP_REST_Server::READABLE,
 				'callback' => [ $this, 'rest_export_data_v2' ],
+				'permission_callback' => '__return_true',
 			] );
 
 			/**
@@ -483,10 +485,12 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			register_rest_route( 'sce/v2', '/media', [
 				'methods'  => WP_REST_Server::READABLE,
 				'callback' => [ $this, 'rest_export_media_v2' ],
+				'permission_callback' => '__return_true',
 			] );
 			register_rest_route( 'sce/v2', '/posts', [
 				'methods'  => WP_REST_Server::CREATABLE,
 				'callback' => [ $this, 'rest_export_posts_v2' ],
+				'permission_callback' => '__return_true',
 				'args'     => [
 					'include' => [
 						'required' => true,
@@ -496,6 +500,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			register_rest_route( 'sce/v2', '/terms', [
 				'methods'  => WP_REST_Server::CREATABLE,
 				'callback' => [ $this, 'rest_export_terms_v2' ],
+				'permission_callback' => '__return_true',
 				'args'     => [
 					'include' => [
 						'required' => true,
@@ -505,6 +510,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			register_rest_route( 'sce/v2', '/widgets', [
 				'methods'  => WP_REST_Server::CREATABLE,
 				'callback' => [ $this, 'rest_export_widgets_v2' ],
+				'permission_callback' => '__return_true',
 			] );
 		}
 
