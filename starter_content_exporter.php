@@ -383,13 +383,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		protected function get_options_select_list() : array {
 			$select_options = [];
 
-			// Include the current theme theme_mods entry.
-			$current_theme_stylesheet = get_stylesheet();
-			// Allow for PixelgradeCare logic to take effect (mainly the LT themes).
-			if ( class_exists( 'PixelgradeCare_Admin') && method_exists( 'PixelgradeCare_Admin', 'get_theme_main_product_sku' ) ) {
-				$current_theme_stylesheet = PixelgradeCare_Admin::get_theme_main_product_sku();
-			}
-			$select_options[ "theme_mods_$current_theme_stylesheet" ] = "theme_mods_$current_theme_stylesheet";
+			// Do not include the current theme theme_mods entry, since we provide dedicated fields for theme_mods.
 
 			$options = wp_load_alloptions();
 
