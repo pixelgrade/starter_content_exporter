@@ -3,7 +3,7 @@
  * Plugin Name:       Starter Content Exporter
  * Plugin URI:        https://pixelgrade.com/
  * Description:       A plugin which exposes exportable data through the REST API.
- * Version:           1.1.0
+ * Version:           1.2.0
  * Author:            Pixelgrade, Vlad Olaru
  * Author URI:        https://pixelgrade.com/
  * License:           GPL-2.0+
@@ -356,13 +356,13 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 					'mi_exported_pre_theme_mods'  => [
 						'type'        => 'tags',
 						'label'       => 'Pre Content-Import Theme-Mods Keys',
-						'description' => 'Select which theme_mod keys should be imported before importing must-import content. You can use sub-keys in the form: "rosa_options[\'content_font\']".',
+						'description' => 'Select which theme_mod keys should be imported before importing must-import content.',
 						'options' => $this->get_theme_mods_select_list(),
 					],
 					'mi_exported_post_theme_mods' => [
 						'type'        => 'tags',
 						'label'       => 'Post Content-Import Theme-Mods Keys',
-						'description' => 'Select which theme_mod keys should be imported after importing must-import content. You can use sub-keys in the form: "rosa_options[\'content_font\']".',
+						'description' => 'Select which theme_mod keys should be imported after importing must-import content.',
 						'options' => $this->get_theme_mods_select_list(),
 					],
 				],

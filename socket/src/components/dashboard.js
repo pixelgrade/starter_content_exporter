@@ -283,18 +283,20 @@ class SocketDashboard extends React.Component {
 
 				if (!isUndefined(fieldConfig.options)) {
 					Object.keys(fieldConfig.options).map(function (opt) {
-						dropdownOptions.push({key: opt, value: opt, text: fieldConfig.options[opt]})
+						dropdownOptions.push({key: fieldKey+'__'+opt, value: opt, text: fieldConfig.options[opt]})
 					})
 				}
 
 				output = <Form.Field>
 					<Dropdown
 						placeholder={placeholder}
+						fluid
+						multiple
 						search
 						selection
 						closeOnEscape
 						closeOnBlur
-						defaultValue={value}
+						value={value}
 						options={dropdownOptions}
 						onChange={component.radioHandleChange}/>
 				</Form.Field>
@@ -307,7 +309,7 @@ class SocketDashboard extends React.Component {
 
 				if (!isUndefined(fieldConfig.options)) {
 					Object.keys(fieldConfig.options).map(function (opt) {
-						dropdownOptions.push({key: opt, value: opt, text: fieldConfig.options[opt]})
+						dropdownOptions.push({key: fieldKey+'__'+opt, value: opt, text: fieldConfig.options[opt]})
 					})
 				}
 
@@ -324,7 +326,7 @@ class SocketDashboard extends React.Component {
 							return
 						}
 
-						dropdownOptions.push({key: option, value: option, text: option})
+						dropdownOptions.push({key: fieldKey+'__'+option, value: option, text: option})
 					})
 				}
 
@@ -332,10 +334,11 @@ class SocketDashboard extends React.Component {
 					<Dropdown
 						data-field_key={fieldKey}
 						placeholder={placeholder}
-						search
-						allowAdditions
-						selection
+						fluid
 						multiple
+						search
+						selection
+						allowAdditions
 						options={dropdownOptions}
 						value={currentValues}
 						onChange={component.tagsHandleAddition}/>
@@ -653,15 +656,17 @@ class SocketDashboard extends React.Component {
 
 	tagsHandleAddition = (e, {value}) => {
 		let component = this,
-			componentNode = ReactDOM.findDOMNode(e.target),
 			name = null
 
+		// Get at the first item, since the click may have come from inner elements like span.
+		const targetItem = e.target.closest('.item')
+
 		// Try to get the field name.
-		if (typeof e.target.parentNode.dataset.field_key !== 'undefined') {
-			name = e.target.parentNode.dataset.field_key
+		if (typeof targetItem.parentNode.dataset.field_key !== 'undefined') {
+			name = targetItem.parentNode.dataset.field_key
 			// In case this is a tag removal, the field is on the ancestor.
-		} else if (typeof e.target.parentNode.parentNode.dataset.field_key !== 'undefined') {
-			name = e.target.parentNode.parentNode.dataset.field_key
+		} else if (typeof targetItem.parentNode.parentNode.dataset.field_key !== 'undefined') {
+			name = targetItem.parentNode.parentNode.dataset.field_key
 		} else {
 			console.log('no name')
 			return

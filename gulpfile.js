@@ -6,11 +6,6 @@ var plugin = 'starter_content_exporter',
 	cp = require('child_process'),
 	del         = require('del');
 
-var options = {
-	silent: true,
-	continueOnError: true // default: false
-};
-
 /**
  * Copy plugin folder outside in a build folder, recreate styles before that
  */
