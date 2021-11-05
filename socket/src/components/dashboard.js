@@ -664,7 +664,7 @@ class SocketDashboard extends React.Component {
 
 		// Try to get the field name.
 		if (typeof mainFieldItem.dataset.field_key !== 'undefined') {
-			fieldName = mainFieldItem.parentNode.dataset.field_key
+			fieldName = mainFieldItem.dataset.field_key
 		} else {
 			console.log('Could not get the field name.')
 			return

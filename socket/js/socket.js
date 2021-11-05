@@ -73768,7 +73768,7 @@ var SocketDashboard = /*#__PURE__*/function (_React$Component) {
       var mainFieldItem = e.target.closest('.tags-dropdown'); // Try to get the field name.
 
       if (typeof mainFieldItem.dataset.field_key !== 'undefined') {
-        fieldName = mainFieldItem.parentNode.dataset.field_key;
+        fieldName = mainFieldItem.dataset.field_key;
       } else {
         console.log('Could not get the field name.');
         return;
