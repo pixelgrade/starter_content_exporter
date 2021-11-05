@@ -93,7 +93,7 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 
 		public function pretty_permalinks_notice() {
 			printf(
-				'<div class="notice notice-warning"><p><strong>%s</strong><br>%s</p><p><a href="%s">%s</a></p></div>',
+				'<div class="notice notice-warning"><p></p><p><strong>%s</strong><br>%s</p><p><a href="%s">%s</a></p><p></p></div>',
 				sprintf(
 				/* translators: %s: The navigation label */
 					__( '%s relies on the REST-API that, in turn, needs this site to use "pretty" permalinks (custom permalink structure), not query-based (plain) links.' ),
