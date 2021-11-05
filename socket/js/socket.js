@@ -73762,30 +73762,28 @@ var SocketDashboard = /*#__PURE__*/function (_React$Component) {
       var value = _ref.value;
 
       var component = _assertThisInitialized(_this),
-          name = null; // Get at the first item, since the click may have come from inner elements like span.
+          fieldName = null; // Get at the first item, since the click may have come from inner elements like span.
 
 
-      var targetItem = e.target.closest('.item'); // Try to get the field name.
+      var mainFieldItem = e.target.closest('.tags-dropdown'); // Try to get the field name.
 
-      if (typeof targetItem.parentNode.dataset.field_key !== 'undefined') {
-        name = targetItem.parentNode.dataset.field_key; // In case this is a tag removal, the field is on the ancestor.
-      } else if (typeof targetItem.parentNode.parentNode.dataset.field_key !== 'undefined') {
-        name = targetItem.parentNode.parentNode.dataset.field_key;
+      if (typeof mainFieldItem.dataset.field_key !== 'undefined') {
+        fieldName = mainFieldItem.parentNode.dataset.field_key;
       } else {
-        console.log('no name');
+        console.log('Could not get the field name.');
         return;
       }
 
-      if (typeof component.state.values[name] === 'undefined') {
-        component.state.values[name] = [];
+      if (typeof component.state.values[fieldName] === 'undefined') {
+        component.state.values[fieldName] = [];
       }
 
-      if (component.state.values[name].indexOf(value) !== -1) {
+      if (component.state.values[fieldName].indexOf(value) !== -1) {
         console.log('Value already exists');
         return;
       }
 
-      component.state.values[name] = value;
+      component.state.values[fieldName] = value;
 
       if (!_this.state.loading) {
         _this.async_loading(function () {
@@ -73797,8 +73795,8 @@ var SocketDashboard = /*#__PURE__*/function (_React$Component) {
             },
             data: {
               'socket_nonce': socket.wp_rest.socket_nonce,
-              name: name,
-              value: component.state.values[name]
+              name: fieldName,
+              value: component.state.values[fieldName]
             }
           }).done(function (response) {
             if (response.success) {
@@ -74174,6 +74172,7 @@ var SocketDashboard = /*#__PURE__*/function (_React$Component) {
             }
 
             output = /*#__PURE__*/_react.default.createElement(_semanticUiReact.Form.Field, null, /*#__PURE__*/_react.default.createElement(_semanticUiReact.Dropdown, {
+              className: "dropdown-multiselect tags-dropdown",
               "data-field_key": fieldKey,
               placeholder: placeholder,
               fluid: true,

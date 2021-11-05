@@ -69,8 +69,15 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 			$this->set_defaults( $this->config );
 		}
 
-		// Register a settings page
-		function add_admin_menu() {
+		/**
+		 * Register a settings page
+		 */
+		public function add_admin_menu() {
+			// Show an error notice if pretty permalinks are not in use since REST-API routes will fail.
+			if ( $this->is_socket_dashboard() && ! get_option( 'permalink_structure' ) ) {
+				add_action( 'admin_notices', [ $this, 'pretty_permalinks_notice' ], 5 );
+			}
+
 			add_submenu_page(
 				'options-general.php',
 				$this->page_title,
@@ -84,7 +91,21 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 			);
 		}
 
-		function socket_options_page() { ?>
+		public function pretty_permalinks_notice() {
+			printf(
+				'<div class="notice notice-warning"><p><strong>%s</strong><br>%s</p><p><a href="%s">%s</a></p></div>',
+				sprintf(
+				/* translators: %s: The navigation label */
+					__( '%s relies on the REST-API that, in turn, needs this site to use "pretty" permalinks (custom permalink structure), not query-based (plain) links.' ),
+					$this->nav_label
+				),
+				__( 'Please activate the "pretty" permalinks for your site before you start configuring the options bellow.' ),
+				esc_url( admin_url( 'options-permalink.php' ) ),
+				__( 'Go to the Permalinks screen' )
+			);
+		}
+
+		public function socket_options_page() { ?>
 			<div class="wrap">
 				<div class="socket-wrapper">
 					<header class="title">
@@ -101,17 +122,6 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 				</div>
 			</div>
 			<?php
-		}
-
-		function settings_init() {
-			register_setting( 'socket', 'socket_settings' );
-
-			add_settings_section(
-				'socket_section',
-				$this->page_title . esc_html__( ' My plugin description description', 'socket' ),
-				null,
-				'socket'
-			);
 		}
 
 		/**
@@ -166,7 +176,7 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 			}
 		}
 
-		function localize_js_data( $script ) {
+		protected function localize_js_data( $script ) {
 			$values = $this->get_option( 'state' );
 
 			$localized_data = [
@@ -188,7 +198,7 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 			wp_localize_script( $script, 'socket', $localized_data );
 		}
 
-		function cleanup_values( $values ) {
+		protected function cleanup_values( $values ) {
 			if ( empty( $values ) ) {
 				return [];
 			}
@@ -208,7 +218,7 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 			return $values;
 		}
 
-		function add_rest_routes_api() {
+		public function add_rest_routes_api() {
 			//The Following registers an api route with multiple parameters.
 			$route = 'socket';
 
@@ -232,7 +242,7 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 			] );
 		}
 
-		function permission_nonce_callback() {
+		public function permission_nonce_callback() {
 			$nonce = '';
 
 			if ( isset( $_REQUEST['socket_nonce'] ) ) {
@@ -244,12 +254,12 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 			return wp_verify_nonce( $nonce, 'socket_rest' );
 		}
 
-		function rest_get_state() {
+		public function rest_get_state() {
 			$state = $this->get_option( 'state' );
 			wp_send_json_success( $state );
 		}
 
-		function rest_set_state() {
+		public function rest_set_state() {
 			if ( empty( $_POST['name'] ) ) {
 				wp_send_json_error( esc_html__( 'Missing the name of the field', 'socket' ) );
 			}
@@ -275,7 +285,7 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 			wp_send_json_success( $this->save_values() );
 		}
 
-		function rest_cleanup() {
+		public function rest_cleanup() {
 
 			if ( empty( $_POST['test1'] ) || empty( $_POST['test2'] ) || empty( $_POST['confirm'] ) ) {
 				wp_send_json_error( 'nah' );
@@ -300,7 +310,7 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 		/**
 		 * Helpers
 		 **/
-		function is_socket_dashboard() {
+		public function is_socket_dashboard() {
 			if ( is_admin() && ! empty( $_GET['page'] ) && $this->plugin === $_GET['page'] ) {
 				return true;
 			}
@@ -308,7 +318,7 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 			return false;
 		}
 
-		function set_values() {
+		protected function set_values() {
 			$this->values = get_option( $this->plugin );
 			if ( $this->values === false ) {
 				$this->values = $this->defaults;
@@ -317,11 +327,11 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 			}
 		}
 
-		function save_values() {
+		protected function save_values() {
 			return update_option( $this->plugin, $this->values );
 		}
 
-		function set_defaults( $config ) {
+		protected function set_defaults( $config ) {
 
 			if ( ! empty( $config ) ) {
 
@@ -342,7 +352,7 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 			}
 		}
 
-		function get_values() {
+		protected function get_values() {
 			if ( empty( $this->values ) ) {
 				$this->set_values();
 			}
@@ -350,7 +360,7 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 			return $this->values;
 		}
 
-		function get_option( $option, $default = null ) {
+		protected function get_option( $option, $default = null ) {
 			$values = $this->get_values();
 
 			if ( ! empty( $values[ $option ] ) ) {
@@ -364,7 +374,7 @@ if ( ! class_exists( 'WP_Socket' ) ) {
 			return null;
 		}
 
-		function array_key_exists_r( $needle, $haystack ) {
+		protected function array_key_exists_r( $needle, $haystack ) {
 			$result = array_key_exists( $needle, $haystack );
 
 			if ( $result ) {
