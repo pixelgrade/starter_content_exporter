@@ -10,6 +10,9 @@
  * License URI:       http://www.gnu.org/licenses/gpl-2.0.txt
  * Text Domain:       socket
  * Domain Path:       /languages
+ * Requires at least: 5.5.0
+ * Tested up to:      5.8.1
+ * Requires PHP:      5.6.20
  */
 
 if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
