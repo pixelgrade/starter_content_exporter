@@ -1032,10 +1032,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			$options = get_option( 'starter_content_exporter' );
 
 			$settings = [
-				'options' => [
-					'page_on_front'  => get_option( 'page_on_front' ),
-					'page_for_posts' => get_option( 'page_for_posts' ),
-				],
+				'options' => [],
 				'mods'    => [],
 			];
 
