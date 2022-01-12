@@ -161,6 +161,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				'feedback',
 				'jp_pay_order',
 				'jp_pay_product',
+				'nf_sub',
 			];
 
 			if ( ! in_array( $post_type, $excluded_cpts ) && is_array( $args ) && ! isset( $args['show_in_rest'] ) ) {
