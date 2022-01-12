@@ -38,12 +38,15 @@ gulp.task( 'remove-files', function() {
 	// files that should not be present in build zip
 	var files_to_remove = [
 		'node_modules',
+		'node-tasks',
 		'bin',
 		'tests',
 		'.travis.yml',
 		'.babelrc',
 		'.gitignore',
-		'.codeclimate.yml',
+		'.node-version',
+		'.npmrc',
+		'.nvmrc',
 		'.csslintrc',
 		'.eslintignore',
 		'.eslintrc',

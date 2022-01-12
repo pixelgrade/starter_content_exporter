@@ -10,6 +10,8 @@ The selected data is available at the endpoint `/wp-json/sce/v1/data` as a JSON 
  
 ## About data
 
+@todo Need to update this to the new `must-import` and `optional content/data` structure!
+
 ### Images
 
 If you have images under copyright and you don't want to export them, this plugin offers you two fields :

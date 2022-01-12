@@ -100,6 +100,7 @@ class SocketPostSelect extends React.Component {
 
 			wpPosts.fetch({
 				data: {
+					source: "socket",
 					per_page: 100,
 					filter: query
 				}

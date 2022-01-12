@@ -75121,6 +75121,7 @@ var SocketPostSelect = /*#__PURE__*/function (_React$Component) {
 
         wpPosts.fetch({
           data: {
+            source: "socket",
             per_page: 100,
             filter: query
           }
@@ -75353,7 +75354,7 @@ var SocketTaxSelect = /*#__PURE__*/function (_React$Component) {
         }
 
         var terms = [],
-            url = socket.wp_rest.root + 'wp/v2/' + rest_base + '?per_page=' + query.per_page;
+            url = socket.wp_rest.root + 'wp/v2/' + rest_base + '?per_page=' + query.per_page + '&source=socket';
         fetch(url).then(function (response) {
           return response.json();
         }).then(function (results) {

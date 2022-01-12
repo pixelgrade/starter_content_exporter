@@ -3,7 +3,7 @@
  * Plugin Name:       Starter Content Exporter
  * Plugin URI:        https://pixelgrade.com/
  * Description:       A plugin which exposes exportable data through the REST API.
- * Version:           1.2.2
+ * Version:           1.2.3
  * Author:            Pixelgrade, Vlad Olaru
  * Author URI:        https://pixelgrade.com/
  * License:           GPL-2.0+
@@ -11,8 +11,8 @@
  * Text Domain:       socket
  * Domain Path:       /languages
  * Requires at least: 5.5.0
- * Tested up to:      5.8.1
- * Requires PHP:      5.6.20
+ * Tested up to:      5.8.3
+ * Requires PHP:      7.4
  */
 
 if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
@@ -95,6 +95,15 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			add_action( 'init', [ $this, 'init_demo_exporter' ], 100050 );
 			add_filter( 'socket_config_for_starter_content_exporter', [ $this, 'add_socket_config' ] );
 
+			/**
+			 * Add REST API support to all registered post types that don't specify a REST API behavior.
+			 *
+			 * This is OK since we use Starter Content Exporter on demo sites and there is nothing sensitive to expose.
+			 */
+			add_filter( 'register_post_type_args', [ $this, 'add_restapi_post_type_args' ], 10, 2 );
+			// Do the same for taxonomies.
+			add_filter( 'register_taxonomy_args', [ $this, 'add_restapi_taxonomy_args' ], 10, 2 );
+
 			// The new standard following endpoints
 			add_action( 'rest_api_init', [ $this, 'add_rest_routes_api_v2' ] );
 
@@ -105,6 +114,11 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			// widgets
 			add_filter( 'pixcare_sce_widget_data_export_text', [ $this, 'prepare_text_widgets' ], 10, 1 );
 			add_filter( 'pixcare_sce_widget_data_export_nav_menu', [ $this, 'prepare_menu_widgets' ], 10, 1 );
+
+			// Make sure that queries don't get an unbound `posts_per_page` value (-1), via filtering.
+			// since the REST API core controllers (like WP_REST_Posts_Controller) don't support that.
+			// @see https://core.trac.wordpress.org/ticket/43998
+			add_action( 'rest_api_init', [ $this, 'prevent_unbound_rest_queries' ] );
 		}
 
 		/**
@@ -122,6 +136,65 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			] );
 
 			require_once( plugin_dir_path( __FILE__ ) . 'safe-svg.php' );
+		}
+
+		/**
+		 * Add the `show_in_rest` CPT argument if it is not already present.
+		 *
+		 * @param $args
+		 * @param $post_type
+		 *
+		 * @return mixed
+		 */
+		public function add_restapi_post_type_args( $args, $post_type ) {
+			// We don't want to mess with these since they are system-related.
+			$excluded_cpts = [
+				'revision',
+				'customize_changeset',
+				'oembed_cache',
+				'user_request',
+			];
+
+			if ( ! in_array( $post_type, $excluded_cpts ) && is_array( $args ) && ! isset( $args['show_in_rest'] ) ) {
+				$args['show_in_rest'] = true;
+			}
+
+			return $args;
+		}
+
+		/**
+		 * Add the `show_in_rest` taxonomy argument if it is not already present.
+		 *
+		 * @param $args
+		 *
+		 * @return mixed
+		 */
+		public function add_restapi_taxonomy_args( $args ) {
+			if ( is_array( $args ) && ! isset( $args['show_in_rest'] ) ) {
+				$args['show_in_rest'] = true;
+			}
+
+			return $args;
+		}
+
+		/**
+		 * For REST API requests, prevent unbound `posts_per_page` value (-1).
+		 *
+		 * Nova_Restaurant CPT is filtering the posts query and imposing a -1 value,
+		 * thus making it impossible to fetch food menu items via REST API.
+		 *
+		 * The REST API core controllers (like WP_REST_Posts_Controller) don't support that.
+		 * @see https://core.trac.wordpress.org/ticket/43998
+		 *
+		 * @return void
+		 */
+		public function prevent_unbound_rest_queries() {
+			add_action( 'parse_query', function( $query ) {
+				if ( isset( $query->query_vars['posts_per_page'] ) && -1 === $query->query_vars['posts_per_page'] ) {
+					// 100 posts is the maximum allowed per page by the core REST controllers.
+					$query->query_vars['posts_per_page'] = 100;
+				}
+			}, 9999 );
 		}
 
 		/**

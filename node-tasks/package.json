@@ -1,0 +1,10 @@
+{
+    "name": "pixelgrade-care-node-tasks",
+    "description": "Tasks to ensure uniform node version usage.",
+    "private": false,
+    "sideEffects": false,
+    "license": "GPL-2.0+",
+    "dependencies": {
+        "semver": "^7.3.5"
+    }
+}

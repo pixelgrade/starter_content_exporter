@@ -105,7 +105,7 @@ class SocketTaxSelect extends React.Component {
 			}
 
 			let terms = [],
-				url = socket.wp_rest.root + 'wp/v2/' + rest_base + '?per_page=' + query.per_page
+				url = socket.wp_rest.root + 'wp/v2/' + rest_base + '?per_page=' + query.per_page + '&source=socket'
 
 			fetch(url)
 				.then((response) => {
