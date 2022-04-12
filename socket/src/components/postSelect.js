@@ -128,7 +128,7 @@ class SocketPostSelect extends React.Component {
 						if (isEmpty(model.title.rendered)) {
 							title = pre + '<No title!>' + ' (post ID: ' + model.id + ')'
 						} else {
-							title = pre + model.title.rendered
+							title = pre + model.title.rendered + ' (post ID: ' + model.id + ')'
 						}
 
 						posts.push({key: model.id, value: model.id.toString(), text: decode(title)})

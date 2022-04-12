@@ -75052,7 +75052,7 @@ var SocketPostSelect = /*#__PURE__*/function (_React$Component) {
               if ((0, _isEmpty.default)(model.title.rendered)) {
                 title = pre + '<No title!>' + ' (post ID: ' + model.id + ')';
               } else {
-                title = pre + model.title.rendered;
+                title = pre + model.title.rendered + ' (post ID: ' + model.id + ')';
               }
 
               posts.push({
