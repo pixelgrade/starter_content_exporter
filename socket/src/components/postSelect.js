@@ -17,7 +17,7 @@ class SocketPostSelect extends React.Component {
 
 		// get the current state localized by wordpress
 		this.state = {
-			loading: true,
+			loading: false,
 			posts: [],
 			name: null,
 			value: this.props.value
@@ -82,7 +82,7 @@ class SocketPostSelect extends React.Component {
 	}
 
 	componentWillMount () {
-		if (!this.state.loading) {
+		if (this.state.loading) {
 			return false
 		}
 
@@ -90,13 +90,23 @@ class SocketPostSelect extends React.Component {
 
 		// load all the posts
 		wp.api.loadPromise.done(function () {
-			let wpPosts = new wp.api.collections.Posts(),
-				posts = [],
+			let posts = [],
 				query = {}
 
 			if (!isUndefined(component.props.field.query)) {
 				query = {...query, ...component.props.field.query}
 			}
+
+			if (isUndefined(query.post_type)) {
+				console.error( 'No post type specified for post type query!');
+				return
+			}
+
+			component.setState({loading: true});
+
+			// Use this general Posts collection (with filters)
+			// since there is a problem with the model generation for Templates and Template Parts.
+			const wpPosts = new wp.api.collections.Posts()
 
 			wpPosts.fetch({
 				data: {
@@ -116,7 +126,7 @@ class SocketPostSelect extends React.Component {
 
 						let title
 						if (isEmpty(model.title.rendered)) {
-							title = pre + '<No title!>'
+							title = pre + '<No title!>' + ' (post ID: ' + model.id + ')'
 						} else {
 							title = pre + model.title.rendered
 						}

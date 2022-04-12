@@ -11,15 +11,15 @@ class SocketTaxSelect extends React.Component {
 
 	constructor (props) {
 		// this makes the this
-		super(props)
+		super(props);
 
 		// get the current state localized by wordpress
 		this.state = {
-			loading: true,
+			loading: false,
 			terms: [],
 			name: null,
 			value: this.props.value
-		}
+		};
 
 		this.handleChange = this.handleChange.bind(this)
 	}
@@ -28,7 +28,7 @@ class SocketTaxSelect extends React.Component {
 		let component = this,
 			output = null,
 			value = this.props.value,
-			placeholder = this.props.placeholder || 'Select'
+			placeholder = this.props.placeholder || 'Select';
 
 		if (isEmpty(value)) {
 			value = []
@@ -48,15 +48,15 @@ class SocketTaxSelect extends React.Component {
 				options={this.state.terms}
 				onChange={component.handleChange}
 			/>
-		</Form.Field>
+		</Form.Field>;
 
 		return output
 	}
 
 	handleChange = (e, {value}) => {
-		let component = this
+		let component = this;
 
-		component.props.setupLoadingFlag(true)
+		component.props.setupLoadingFlag(true);
 
 		jQuery.ajax({
 			url: socket.wp_rest.root + socket.wp_rest.api_base + '/option',
@@ -72,64 +72,78 @@ class SocketTaxSelect extends React.Component {
 		}).done(function (response) {
 			component.props.setupLoadingFlag(false)
 		}).error(function (err) {
-			console.log(err)
+			console.log(err);
 			component.props.setupLoadingFlag(false)
-		})
+		});
 
 		this.setState({value})
-	}
+	};
 
 	componentWillMount () {
-		if (!this.state.loading) {
+		if (this.state.loading) {
 			return false
 		}
 
-		let component = this
+		let component = this;
 
-		wp.api.loadPromise.done(function () {
-			let query = {per_page: 100, taxonomy: 'categories'}
+		wp.api.loadPromise.done(async function () {
+			let terms = [],
+				query = {};
 
 			if (!isUndefined(component.props.field.query)) {
 				query = {...query, ...component.props.field.query}
 			}
 
 			if (isUndefined(query.taxonomy)) {
+				console.error( 'No taxonomy specified for tax query!' );
 				return
 			}
 
-			let rest_base = query.taxonomy
+			let rest_namespace = 'wp/v2';
+			let rest_base = query.taxonomy;
 
-			// check if this taxonomy has a different rest_base than the taxonomy name
-			if (!isUndefined(socket.wp.taxonomies[rest_base]) && !isEmpty(socket.wp.taxonomies[rest_base].rest_base)) {
-				rest_base = socket.wp.taxonomies[rest_base].rest_base
+			// check if this taxonomy has a different rest_namespace than the default one
+			if (!isUndefined(socket.wp.taxonomies[query.taxonomy]) && !isEmpty(socket.wp.taxonomies[query.taxonomy].rest_namespace)) {
+				rest_namespace = socket.wp.taxonomies[query.taxonomy].rest_namespace
 			}
 
-			let terms = [],
-				url = socket.wp_rest.root + 'wp/v2/' + rest_base + '?per_page=' + query.per_page + '&source=socket'
+			// check if this taxonomy has a different rest_base than the taxonomy name
+			if (!isUndefined(socket.wp.taxonomies[query.taxonomy]) && !isEmpty(socket.wp.taxonomies[query.taxonomy].rest_base)) {
+				rest_base = socket.wp.taxonomies[query.taxonomy].rest_base
+			}
 
-			fetch(url)
-				.then((response) => {
-					return response.json()
-				})
-				.then((results) => {
-					{
-						Object.keys(results).map(function (i) {
-							let model = results[i]
+			let Collection = wp.api.getCollectionByRoute( '/' + rest_namespace + '/' + rest_base );
+			if ( typeof Collection === 'undefined' ) {
+				console.error( 'Could not find a WP API collection for route: ' + '/' + rest_namespace + '/' + rest_base );
+				return;
+			}
 
-							if (!isUndefined(model.id)) {
-								let pre = ''
+			component.setState({loading: true});
 
-								if (model.parent > 0) {
-									pre = ' –– '
-								}
+			await( new Collection() ).fetch( {
+				data: {
+					source: "socket",
+					per_page: 100,
+				}
+			} ).done(function (models) {
+				{
+					Object.keys(models).map(function (i) {
+						let model = models[i];
 
-								terms.push({key: model.id, value: model.id.toString(), text: pre + model.name})
+						if (!isUndefined(model.id)) {
+							let pre = '';
+
+							if (model.parent > 0) {
+								pre = ' –– '
 							}
-						})
-					}
 
-					component.setState({terms: terms, loading: false})
-				})
+							terms.push({key: model.id, value: model.id.toString(), text: pre + model.name})
+						}
+					})
+				}
+
+				component.setState({terms: terms, loading: false})
+			})
 		})
 	}
 }
@@ -138,6 +152,6 @@ SocketTaxSelect.propTypes = {
 	name: PropTypes.string,
 	value: PropTypes.array,
 	setupLoadingFlag: PropTypes.func
-}
+};
 
 export default SocketTaxSelect

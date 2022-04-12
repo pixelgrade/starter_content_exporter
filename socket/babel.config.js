@@ -13,6 +13,7 @@ module.exports = function (api) {
 		"@babel/plugin-syntax-dynamic-import",
 		"@babel/plugin-proposal-class-properties",
 		"@babel/plugin-proposal-function-bind",
+		"@babel/plugin-transform-runtime",
 		"lodash",
 	];
 
