@@ -19,8 +19,6 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 	class Starter_Content_Exporter {
 
-		private $ignored_images;
-
 		private $client_placeholders;
 
 		/**
@@ -198,8 +196,8 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		 * @return void
 		 */
 		public function prevent_unbound_rest_queries() {
-			add_action( 'parse_query', function( $query ) {
-				if ( isset( $query->query_vars['posts_per_page'] ) && -1 === $query->query_vars['posts_per_page'] ) {
+			add_action( 'parse_query', function ( $query ) {
+				if ( isset( $query->query_vars['posts_per_page'] ) && - 1 === $query->query_vars['posts_per_page'] ) {
 					// 100 posts is the maximum allowed per page by the core REST controllers.
 					$query->query_vars['posts_per_page'] = 100;
 				}
@@ -247,110 +245,16 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				'sockets'     => [],
 			] );
 
-			$config['sockets']['export_media'] = [
-				'label' => 'Media',
-				'items' => [
-					'placeholders'   => [
-						'type'        => 'gallery',
-						'label'       => 'Placeholder Images',
-						'description' => 'Pick a set of images which should <strong>replace post content images.</strong> Assume the order in which these images will be chosen is <em>random.</em>',
-					],
-					'ignored_images' => [
-						'type'        => 'gallery',
-						'label'       => 'Ignored Images',
-						'description' => 'Pick a set of images to be <strong>ignored from replacement</strong> in the exported content. They will be exported as they are.',
-					],
-				],
-			];
-
-			$config['sockets']['export_post_types'] = [
-				'label' => 'Content (posts & taxonomies)',
-				'items' => [],
-			];
-
+			// Get all the post types that are shown in the REST API.
 			$post_types = get_post_types( [ 'show_in_rest' => true ], 'objects' );
 
-			foreach ( $post_types as $post_type => $post_type_config ) {
-				if ( 'attachment' === $post_type ) {
-					continue;
-				}
-
-				$config['sockets']['export_post_types']['items'][ 'post_type_' . $post_type . '_start' ] = [
-					'type' => 'divider',
-					'html' => $post_type,
-				];
-
-				$config['sockets']['export_post_types']['items'][ 'post_type_' . $post_type ] = [
-					'type'  => 'post_select',
-					'label' => $post_type_config->label,
-					'query' => [
-						'post_type' => $post_type,
-					],
-				];
-
-				$taxonomy_objects = get_object_taxonomies( $post_type, 'objects' );
-				if ( ! empty( $taxonomy_objects ) ) {
-					foreach ( $taxonomy_objects as $tax => $tax_config ) {
-
-						if ( in_array( $tax,[
-							'feedback',
-							'jp_pay_order',
-							'jp_pay_product',
-							'post_format',
-							'product_type',
-							'product_visibility',
-							'product_shipping_class',
-							'wp_template_part_area',
-							'wp_theme',
-						] ) ) {
-							continue;
-						}
-
-						$config['sockets']['export_post_types']['items'][ 'tax_' . $tax ] = [
-							'type'  => 'tax_select',
-							'label' => $tax_config->label,
-							'query' => [
-								'taxonomy' => $tax,
-							],
-						];
-					}
-				}
-
-				$config['sockets']['export_post_types']['items'][ 'post_type_' . $post_type . '_end' ] = [
-					'type' => 'divider',
-					'html' => ''
-				];
-			}
-
-			$config['sockets']['export_options'] = [
-				'label' => 'Site Options and Theme-Mods',
-				'items' => [
-					'exported_pre_options'    => [
-						'type'        => 'tags',
-						'label'       => 'Pre Content-Import Site Options Keys',
-						'description' => 'Select which site options keys should be imported before importing the content. There is no need to include must-import options.',
-						'options' => $this->get_options_select_list(),
-					],
-					'exported_post_options'   => [
-						'type'        => 'tags',
-						'label'       => 'Post Content-Import Site Options Keys',
-						'description' => 'Select which site options keys should be imported after the content has been imported. There is no need to include must-import options.',
-						'options' => $this->get_options_select_list(),
-					],
-					'exported_pre_theme_mods' => [
-						'type'        => 'tags',
-						'label'       => 'Pre Content-Import Theme-Mods Keys',
-						'description' => 'Select which theme_mod keys should be imported before importing content. There is no need to include must-import theme_mods.',
-						'options' => $this->get_theme_mods_select_list(),
-					],
-					'ignored_post_theme_mods' => [
-						'type'        => 'tags',
-						'label'       => 'Ignored Theme-Mods Keys',
-						'description' => '<strong>All remaining theme mods are imported after the content import,</strong> but you can chose to ignore certain keys.',
-						'options' => $this->get_theme_mods_select_list(),
-					],
-				],
+			$post_types_with_specific_media = [
+				'product',
 			];
+
+			/**
+			 * MUST-IMPORT GROUP SOCKETS.
+			 */
 
 			// Must-Import media.
 			$config['sockets']['export_mi_media'] = [
@@ -420,6 +324,20 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 					}
 				}
 
+				// Add post type specific media items.
+				if ( in_array( $post_type, $post_types_with_specific_media ) ) {
+					$config['sockets']['export_mi_post_types']['items'][ 'mi_post_type_' . $post_type . '_media_placeholders' ]   = [
+						'type'        => 'gallery',
+						'label'       => 'Placeholder Images',
+						'description' => 'Pick a set of images which should <strong>replace post content images, for ' . $post_type . '.</strong> Assume the order in which these images will be chosen is <em>random.</em><br>Leave empty to use the general placeholder images, for this post type.',
+					];
+					$config['sockets']['export_mi_post_types']['items'][ 'mi_post_type_' . $post_type . '_media_ignored_images' ] = [
+						'type'        => 'gallery',
+						'label'       => 'Ignored Images',
+						'description' => 'Pick a set of images to be <strong>ignored from replacement</strong> in the exported content, for ' . $post_type . '. They will be exported as they are.<br>Leave empty to use the general ignored images, for this post type.',
+					];
+				}
+
 				$config['sockets']['export_mi_post_types']['items'][ 'mi_post_type_' . $post_type . '_end' ] = [
 					'type' => 'divider',
 					'html' => '',
@@ -434,25 +352,146 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 						'type'        => 'tags',
 						'label'       => 'Pre Content-Import Site Options Keys',
 						'description' => 'Select which site options keys should be imported before importing the must-import content.',
-						'options' => $this->get_options_select_list(),
+						'options'     => $this->get_options_select_list(),
 					],
 					'mi_exported_post_options'    => [
 						'type'        => 'tags',
 						'label'       => 'Post Content-Import Site Options Keys',
 						'description' => 'Select which site options keys should be imported after the must-import content has been imported.',
-						'options' => $this->get_options_select_list(),
+						'options'     => $this->get_options_select_list(),
 					],
 					'mi_exported_pre_theme_mods'  => [
 						'type'        => 'tags',
 						'label'       => 'Pre Content-Import Theme-Mods Keys',
 						'description' => 'Select which theme_mod keys should be imported before importing must-import content.',
-						'options' => $this->get_theme_mods_select_list(),
+						'options'     => $this->get_theme_mods_select_list(),
 					],
 					'mi_exported_post_theme_mods' => [
 						'type'        => 'tags',
 						'label'       => 'Post Content-Import Theme-Mods Keys',
 						'description' => 'Select which theme_mod keys should be imported after importing must-import content.',
-						'options' => $this->get_theme_mods_select_list(),
+						'options'     => $this->get_theme_mods_select_list(),
+					],
+				],
+			];
+
+			/**
+			 * OPTIONAL-IMPORT GROUP SOCKETS.
+			 */
+
+			$config['sockets']['export_media'] = [
+				'label' => 'Media',
+				'items' => [
+					'placeholders'   => [
+						'type'        => 'gallery',
+						'label'       => 'Placeholder Images',
+						'description' => 'Pick a set of images which should <strong>replace post content images.</strong> Assume the order in which these images will be chosen is <em>random.</em>',
+					],
+					'ignored_images' => [
+						'type'        => 'gallery',
+						'label'       => 'Ignored Images',
+						'description' => 'Pick a set of images to be <strong>ignored from replacement</strong> in the exported content. They will be exported as they are.',
+					],
+				],
+			];
+
+			$config['sockets']['export_post_types'] = [
+				'label' => 'Content (posts & taxonomies)',
+				'items' => [],
+			];
+
+			foreach ( $post_types as $post_type => $post_type_config ) {
+				if ( 'attachment' === $post_type ) {
+					continue;
+				}
+
+				$config['sockets']['export_post_types']['items'][ 'post_type_' . $post_type . '_start' ] = [
+					'type' => 'divider',
+					'html' => $post_type,
+				];
+
+				$config['sockets']['export_post_types']['items'][ 'post_type_' . $post_type ] = [
+					'type'  => 'post_select',
+					'label' => $post_type_config->label,
+					'query' => [
+						'post_type' => $post_type,
+					],
+				];
+
+				$taxonomy_objects = get_object_taxonomies( $post_type, 'objects' );
+				if ( ! empty( $taxonomy_objects ) ) {
+					foreach ( $taxonomy_objects as $tax => $tax_config ) {
+
+						if ( in_array( $tax, [
+							'feedback',
+							'jp_pay_order',
+							'jp_pay_product',
+							'post_format',
+							'product_type',
+							'product_visibility',
+							'product_shipping_class',
+							'wp_template_part_area',
+							'wp_theme',
+						] ) ) {
+							continue;
+						}
+
+						$config['sockets']['export_post_types']['items'][ 'tax_' . $tax ] = [
+							'type'  => 'tax_select',
+							'label' => $tax_config->label,
+							'query' => [
+								'taxonomy' => $tax,
+							],
+						];
+					}
+				}
+
+				// Add post type specific media items.
+				if ( in_array( $post_type, $post_types_with_specific_media ) ) {
+					$config['sockets']['export_post_types']['items'][ 'post_type_' . $post_type . '_media_placeholders' ]   = [
+						'type'        => 'gallery',
+						'label'       => 'Placeholder Images',
+						'description' => 'Pick a set of images which should <strong>replace post content images, for ' . $post_type . '.</strong> Assume the order in which these images will be chosen is <em>random.</em><br>Leave empty to use the general placeholder images, for this post type.',
+					];
+					$config['sockets']['export_post_types']['items'][ 'post_type_' . $post_type . '_media_ignored_images' ] = [
+						'type'        => 'gallery',
+						'label'       => 'Ignored Images',
+						'description' => 'Pick a set of images to be <strong>ignored from replacement</strong> in the exported content, for ' . $post_type . '. They will be exported as they are.<br>Leave empty to use the general ignored images, for this post type.',
+					];
+				}
+
+				$config['sockets']['export_post_types']['items'][ 'post_type_' . $post_type . '_end' ] = [
+					'type' => 'divider',
+					'html' => '',
+				];
+			}
+
+			$config['sockets']['export_options'] = [
+				'label' => 'Site Options and Theme-Mods',
+				'items' => [
+					'exported_pre_options'    => [
+						'type'        => 'tags',
+						'label'       => 'Pre Content-Import Site Options Keys',
+						'description' => 'Select which site options keys should be imported before importing the content. There is no need to include must-import options.',
+						'options'     => $this->get_options_select_list(),
+					],
+					'exported_post_options'   => [
+						'type'        => 'tags',
+						'label'       => 'Post Content-Import Site Options Keys',
+						'description' => 'Select which site options keys should be imported after the content has been imported. There is no need to include must-import options.',
+						'options'     => $this->get_options_select_list(),
+					],
+					'exported_pre_theme_mods' => [
+						'type'        => 'tags',
+						'label'       => 'Pre Content-Import Theme-Mods Keys',
+						'description' => 'Select which theme_mod keys should be imported before importing content. There is no need to include must-import theme_mods.',
+						'options'     => $this->get_theme_mods_select_list(),
+					],
+					'ignored_post_theme_mods' => [
+						'type'        => 'tags',
+						'label'       => 'Ignored Theme-Mods Keys',
+						'description' => '<strong>All remaining theme mods are imported after the content import,</strong> but you can chose to ignore certain keys.',
+						'options'     => $this->get_theme_mods_select_list(),
 					],
 				],
 			];
@@ -469,7 +508,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		 *
 		 * @return array An array with key => value pairs. The key is the select option value, while the value is the select option label.
 		 */
-		protected function get_options_select_list() : array {
+		protected function get_options_select_list(): array {
 			$select_options = [];
 
 			// Do not include the current theme theme_mods entry, since we provide dedicated fields for theme_mods.
@@ -512,7 +551,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		 *
 		 * @return array
 		 */
-		protected function get_theme_mods_select_list() : array {
+		protected function get_theme_mods_select_list(): array {
 
 			$select_options = [];
 
@@ -550,49 +589,51 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		public function add_rest_routes_api_v2() {
 			/**
 			 * Register endpoints for fetching the overall data.
+			 *
+			 * One for must-import data, and the another one for optional data.
 			 */
 			register_rest_route( 'sce/v2', '/mi-data', [
-				'methods'  => WP_REST_Server::READABLE,
-				'callback' => [ $this, 'rest_export_mi_data_v2' ],
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => [ $this, 'rest_export_mi_data_v2' ],
 				'permission_callback' => '__return_true',
 			] );
 			register_rest_route( 'sce/v2', '/data', [
-				'methods'  => WP_REST_Server::READABLE,
-				'callback' => [ $this, 'rest_export_data_v2' ],
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => [ $this, 'rest_export_data_v2' ],
 				'permission_callback' => '__return_true',
 			] );
 
 			/**
-			 * Register endpotins for fetching individual data details.
+			 * Register endpoints for fetching individual data details.
 			 */
 			register_rest_route( 'sce/v2', '/media', [
-				'methods'  => WP_REST_Server::READABLE,
-				'callback' => [ $this, 'rest_export_media_v2' ],
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => [ $this, 'rest_export_media_v2' ],
 				'permission_callback' => '__return_true',
 			] );
 			register_rest_route( 'sce/v2', '/posts', [
-				'methods'  => WP_REST_Server::CREATABLE,
-				'callback' => [ $this, 'rest_export_posts_v2' ],
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => [ $this, 'rest_export_posts_v2' ],
 				'permission_callback' => '__return_true',
-				'args'     => [
+				'args'                => [
 					'include' => [
 						'required' => true,
 					],
 				],
 			] );
 			register_rest_route( 'sce/v2', '/terms', [
-				'methods'  => WP_REST_Server::CREATABLE,
-				'callback' => [ $this, 'rest_export_terms_v2' ],
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => [ $this, 'rest_export_terms_v2' ],
 				'permission_callback' => '__return_true',
-				'args'     => [
+				'args'                => [
 					'include' => [
 						'required' => true,
 					],
 				],
 			] );
 			register_rest_route( 'sce/v2', '/widgets', [
-				'methods'  => WP_REST_Server::CREATABLE,
-				'callback' => [ $this, 'rest_export_widgets_v2' ],
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => [ $this, 'rest_export_widgets_v2' ],
 				'permission_callback' => '__return_true',
 			] );
 		}
@@ -622,15 +663,20 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 			if ( ! empty( $options['mi_ignored_images'] ) ) {
 				$data['media']['ignored'] = $this->validate_attachment_ids( wp_parse_id_list( $options['mi_ignored_images'] ) );
-			} else {
-				$data['media']['ignored'] = [];
 			}
 
 			if ( ! empty( $options ) ) {
 				foreach ( $options as $key => $option ) {
 					if ( strpos( $key, 'mi_post_type_' ) !== false ) {
+						// We are dealing with a post type related item,
+						// but we need to differentiate between posts ids items and media items.
 						$post_type = str_replace( 'mi_post_type_', '', $key );
-						$priority  = 10;
+						if ( strpos( $post_type, '_media_placeholders' ) !== false ) {
+							$post_type = str_replace( '_media_placeholders', '', $post_type );
+						} else if ( strpos( $post_type, '_media_ignored_images' ) !== false ) {
+							$post_type = str_replace( '_media_ignored_images', '', $post_type );
+						}
+						$priority = 10;
 
 						/**
 						 * We need to make sure that the navigation items are imported last.
@@ -640,14 +686,30 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 							$priority = 100;
 						}
 
-						$data['post_types'][] = [
+						if ( empty( $data['post_types'][ $post_type ] ) ) {
+							$data['post_types'][ $post_type ] = [];
+						}
+
+						$data['post_types'][ $post_type ] = wp_parse_args( $data['post_types'][ $post_type ], [
 							'name'     => $post_type,
-							'ids'      => wp_parse_id_list( $option ),
+							'ids'      => [],
+							'media'    => [
+								'placeholders' => [],
+								'ignored'      => [],
+							],
 							'priority' => $priority, // for now all will have the same priority
-						];
+						] );
+
+						if ( strpos( $key, '_media_placeholders' ) !== false ) {
+							$data['post_types'][ $post_type ]['media']['placeholders'] = $this->validate_attachment_ids( wp_parse_id_list( $option ) );
+						} else if ( strpos( $key, '_media_ignored_images' ) !== false ) {
+							$data['post_types'][ $post_type ]['media']['ignored'] = $this->validate_attachment_ids( wp_parse_id_list( $option ) );
+						} else {
+							$data['post_types'][ $post_type ]['ids'] = wp_parse_id_list( $option );
+						}
 					} elseif ( strpos( $key, 'mi_tax_' ) !== false ) {
-						$taxonomy             = str_replace( 'mi_tax_', '', $key );
-						$data['taxonomies'][] = [
+						$taxonomy = str_replace( 'mi_tax_', '', $key );
+						$data['taxonomies'][ $taxonomy ] = [
 							'name'     => $taxonomy,
 							'ids'      => wp_parse_id_list( $option ),
 							'priority' => 10, // for now all will have the same priority
@@ -670,13 +732,13 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			$options = get_option( 'starter_content_exporter' );
 
 			$data = [
-				'media'      => [
+				'media'         => [
 					'placeholders' => [],
 					'ignored'      => [],
 				],
-				'post_types' => [],
-				'taxonomies' => [],
-				'widgets'    => $this->get_widgets(),
+				'post_types'    => [],
+				'taxonomies'    => [],
+				'widgets'       => $this->get_widgets(),
 				'pre_settings'  => [],
 				'post_settings' => [],
 			];
@@ -685,30 +747,55 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				$data['media']['placeholders'] = $this->validate_attachment_ids( wp_parse_id_list( $options['placeholders'] ) );
 			}
 
-			$data['media']['ignored'] = $this->get_ignored_images();
+			if ( ! empty( $options['ignored_images'] ) ) {
+				$data['media']['ignored'] = $this->validate_attachment_ids( wp_parse_id_list( $options['ignored_images'] ) );
+			}
 
 			if ( ! empty( $options ) ) {
 				foreach ( $options as $key => $option ) {
 					if ( strpos( $key, 'post_type_' ) !== false && strpos( $key, 'mi_post_type_' ) === false ) {
+						// We are dealing with a post type related item,
+						// but we need to differentiate between posts ids items and media items.
 						$post_type = str_replace( 'post_type_', '', $key );
-						$priority  = 10;
+						if ( strpos( $post_type, '_media_placeholders' ) !== false ) {
+							$post_type = str_replace( '_media_placeholders', '', $post_type );
+						} else if ( strpos( $post_type, '_media_ignored_images' ) !== false ) {
+							$post_type = str_replace( '_media_ignored_images', '', $post_type );
+						}
+						$priority = 10;
 
 						/**
-						 * We need to make sure that the navigation items are imported the last
-						 * The metadata of a menu item can contain an object_id which should be mapped, but we can only map existing IDS
+						 * We need to make sure that the navigation items are imported last.
+						 * The metadata of a menu item can contain an object_id which should be mapped, but we can only map existing IDs.
 						 */
 						if ( 'nav_menu_item' === $post_type ) {
 							$priority = 100;
 						}
 
-						$data['post_types'][] = [
+						if ( empty( $data['post_types'][ $post_type ] ) ) {
+							$data['post_types'][ $post_type ] = [];
+						}
+
+						$data['post_types'][ $post_type ] = wp_parse_args( $data['post_types'][ $post_type ], [
 							'name'     => $post_type,
-							'ids'      => wp_parse_id_list( $option ),
-							'priority' => $priority, // For now on will have the same priority
-						];
+							'ids'      => [],
+							'media'    => [
+								'placeholders' => [],
+								'ignored'      => [],
+							],
+							'priority' => $priority, // for now all will have the same priority
+						] );
+
+						if ( strpos( $key, '_media_placeholders' ) !== false ) {
+							$data['post_types'][ $post_type ]['media']['placeholders'] = $this->validate_attachment_ids( wp_parse_id_list( $option ) );
+						} else if ( strpos( $key, '_media_ignored_images' ) !== false ) {
+							$data['post_types'][ $post_type ]['media']['ignored'] = $this->validate_attachment_ids( wp_parse_id_list( $option ) );
+						} else {
+							$data['post_types'][ $post_type ]['ids'] = wp_parse_id_list( $option );
+						}
 					} elseif ( strpos( $key, 'tax_' ) !== false && strpos( $key, 'mi_tax_' ) === false ) {
 						$taxonomy             = str_replace( 'tax_', '', $key );
-						$data['taxonomies'][] = [
+						$data['taxonomies'][ $taxonomy ] = [
 							'name'     => $taxonomy,
 							'ids'      => wp_parse_id_list( $option ),
 							'priority' => 10, // For now on will have the same priority.
@@ -727,7 +814,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			] );
 		}
 
-		protected function validate_attachment_ids( $attachment_ids ) : array {
+		protected function validate_attachment_ids( $attachment_ids ): array {
 			if ( empty( $attachment_ids ) ) {
 				$attachment_ids = [];
 			}
@@ -752,10 +839,10 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			$params = $request->get_params();
 
 			$query_args = array(
-				'post__in'       => empty( $params['include'] ) ? [] : wp_parse_id_list( $params['include'] ),
-				'posts_per_page' => 100,
-				'post_type' => 'any',
-				'no_found_rows' => true,
+				'post__in'            => empty( $params['include'] ) ? [] : wp_parse_id_list( $params['include'] ),
+				'posts_per_page'      => 100,
+				'post_type'           => 'any',
+				'no_found_rows'       => true,
 				'ignore_sticky_posts' => true,
 			);
 
@@ -763,8 +850,8 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				$query_args['post_type'] = sanitize_text_field( $params['post_type'] );
 			}
 
-			$get_posts = new WP_Query;
-			$posts = $get_posts->query( $query_args );
+			$get_posts = new WP_Query();
+			$posts     = $get_posts->query( $query_args );
 			foreach ( $posts as &$post ) {
 				$post->meta         = apply_filters( 'sce_export_prepare_post_meta', get_post_meta( $post->ID ), $post );
 				$post->post_content = apply_filters( 'sce_export_prepare_post_content', $post->post_content, $post );
@@ -798,7 +885,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			] );
 		}
 
-		public function parse_content_for_images( string $content ) : string {
+		public function parse_content_for_images( string $content ): string {
 			$upload_dir = wp_get_upload_dir();
 
 			$explode  = explode( '/wp-content/uploads/', $upload_dir['baseurl'] );
@@ -825,7 +912,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			return $content;
 		}
 
-		public function replace_gallery_shortcodes_ids( string $content ) : string {
+		public function replace_gallery_shortcodes_ids( string $content ): string {
 			// pregmatch only the ids attribute
 			$pattern = '((\[gallery.*])?ids=\"(.*)\")';
 
@@ -854,7 +941,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			return $matches[0];
 		}
 
-		public function prepare_post_meta( array $metas ) : array {
+		public function prepare_post_meta( array $metas ): array {
 
 			// useless meta
 			unset( $metas['_edit_lock'] );
@@ -1068,7 +1155,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			}
 
 			foreach ( $mi_pre_options as $key ) {
-				$key = trim( $key );
+				$key          = trim( $key );
 				$option_value = get_option( $key, null );
 
 				// We need to check if the option key really exists and ignore the nonexistent.
@@ -1101,7 +1188,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 					if ( ! empty( $matches )
 					     && ! empty( $matches[1] )
 					     && ! empty( $matches[2] )
-						 && isset( $current_theme_mods[ $matches[1] ] )
+					     && isset( $current_theme_mods[ $matches[1] ] )
 					     && isset( $current_theme_mods[ $matches[1] ][ $matches[2] ] )
 					) {
 
@@ -1128,7 +1215,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			// Make the selected options keys exportable.
 			if ( ! empty( $options['mi_exported_post_options'] ) ) {
 				foreach ( $options['mi_exported_post_options'] as $option ) {
-					$option = trim( $option );
+					$option       = trim( $option );
 					$option_value = get_option( $option, null );
 
 					// We need to check if the option key really exists and ignore the nonexistent.
@@ -1160,7 +1247,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 					     && isset( $current_theme_mods[ $matches[1] ] )
 					     && isset( $current_theme_mods[ $matches[1] ][ $matches[2] ] )
 					) {
-							$settings['mods'][ $key ] = $current_theme_mods[ $matches[1] ][ $matches[2] ];
+						$settings['mods'][ $key ] = $current_theme_mods[ $matches[1] ][ $matches[2] ];
 					}
 				}
 			}
@@ -1192,7 +1279,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			}
 
 			foreach ( $pre_options as $key ) {
-				$key = trim( $key );
+				$key          = trim( $key );
 				$option_value = get_option( $key, null );
 
 				// We need to check if the option key really exists and ignore the nonexistent.
@@ -1301,7 +1388,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			// Make the selected options keys exportable.
 			if ( ! empty( $options['exported_post_options'] ) ) {
 				foreach ( $options['exported_post_options'] as $option ) {
-					$option = trim( $option );
+					$option       = trim( $option );
 					$option_value = get_option( $option, null );
 
 					// we need to check if the option key really exists and ignore the nonexistent
@@ -1478,21 +1565,6 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			}
 
 			return [];
-		}
-
-		protected function get_ignored_images(): array {
-			if ( ! empty( $this->ignored_images ) ) {
-				return $this->ignored_images;
-			}
-
-			$options = get_option( 'starter_content_exporter' );
-			if ( ! empty( $options['ignored_images'] ) ) {
-				$this->ignored_images = $this->validate_attachment_ids( wp_parse_id_list( $options['ignored_images'] ) );
-			} else {
-				$this->ignored_images = [];
-			}
-
-			return $this->ignored_images;
 		}
 
 		protected function get_rotated_placeholder_id( $original_id ) {
