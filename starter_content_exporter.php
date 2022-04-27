@@ -680,11 +680,19 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 						$priority = 10;
 
 						/**
-						 * We need to make sure that the navigation items are imported last.
+						 * We need to make sure that the navigation items are imported at the end.
 						 * The metadata of a menu item can contain an object_id which should be mapped, but we can only map existing IDs.
 						 */
-						if ( 'nav_menu_item' === $post_type ) {
-							$priority = 100;
+						if ( in_array( $post_type, [ 'nav_menu_item', 'wp_navigation', ] ) ) {
+							$priority = 900;
+						}
+
+						/**
+						 * We need to make sure that the wp_template and wp_template_part items are imported at the end.
+						 * Templates and template parts might reference posts (like wp_navigation posts) which should be mapped, but we can only map existing IDs.
+						 */
+						if ( in_array( $post_type, ['wp_template', 'wp_template_part', ] ) ) {
+							$priority = 910;
 						}
 
 						if ( empty( $data['post_types'][ $post_type ] ) ) {
@@ -766,11 +774,19 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 						$priority = 10;
 
 						/**
-						 * We need to make sure that the navigation items are imported last.
+						 * We need to make sure that the navigation items are imported at the end.
 						 * The metadata of a menu item can contain an object_id which should be mapped, but we can only map existing IDs.
 						 */
-						if ( 'nav_menu_item' === $post_type ) {
-							$priority = 100;
+						if ( in_array( $post_type, [ 'nav_menu_item', 'wp_navigation', ] ) ) {
+							$priority = 900;
+						}
+
+						/**
+						 * We need to make sure that the wp_template and wp_template_part items are imported at the end.
+						 * Templates and template parts might reference posts (like wp_navigation posts) which should be mapped, but we can only map existing IDs.
+						 */
+						if ( in_array( $post_type, ['wp_template', 'wp_template_part', ] ) ) {
+							$priority = 910;
 						}
 
 						if ( empty( $data['post_types'][ $post_type ] ) ) {
