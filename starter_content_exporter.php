@@ -248,6 +248,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			// Get all the post types that are shown in the REST API.
 			$post_types = get_post_types( [ 'show_in_rest' => true ], 'objects' );
 
+			// Only add post type specific media items to post types that truly need it.
 			$post_types_with_specific_media = [
 				'product',
 			];
