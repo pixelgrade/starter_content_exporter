@@ -105,13 +105,13 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			// The new standard following endpoints
 			add_action( 'rest_api_init', [ $this, 'add_rest_routes_api_v2' ] );
 
-			// internal filters
-			add_filter( 'sce_export_prepare_post_content', [ $this, 'parse_content_for_images' ], 10, 1 );
-			add_filter( 'sce_export_prepare_post_meta', [ $this, 'prepare_post_meta' ], 10, 1 );
+			// Internal filters.
+			add_filter( 'sce_export_prepare_post_content', [ $this, 'parse_content_for_images' ], 10, 3 );
+			add_filter( 'sce_export_prepare_post_meta', [ $this, 'prepare_post_meta' ], 10, 3 );
 
 			// widgets
 			add_filter( 'pixcare_sce_widget_data_export_text', [ $this, 'prepare_text_widgets' ], 10, 1 );
-			add_filter( 'pixcare_sce_widget_data_export_nav_menu', [ $this, 'prepare_menu_widgets' ], 10, 1 );
+			add_filter( 'pixcare_sce_widget_data_export_nav_menu', [ $this, 'prepare_menu_widgets' ], 10, 3 );
 
 			// Make sure that queries don't get an unbound `posts_per_page` value (-1), via filtering.
 			// since the REST API core controllers (like WP_REST_Posts_Controller) don't support that.
@@ -691,7 +691,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 						 * We need to make sure that the wp_template and wp_template_part items are imported at the end.
 						 * Templates and template parts might reference posts (like wp_navigation posts) which should be mapped, but we can only map existing IDs.
 						 */
-						if ( in_array( $post_type, ['wp_template', 'wp_template_part', ] ) ) {
+						if ( in_array( $post_type, [ 'wp_template', 'wp_template_part', ] ) ) {
 							$priority = 910;
 						}
 
@@ -717,7 +717,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 							$data['post_types'][ $post_type ]['ids'] = wp_parse_id_list( $option );
 						}
 					} elseif ( strpos( $key, 'mi_tax_' ) !== false ) {
-						$taxonomy = str_replace( 'mi_tax_', '', $key );
+						$taxonomy                        = str_replace( 'mi_tax_', '', $key );
 						$data['taxonomies'][ $taxonomy ] = [
 							'name'     => $taxonomy,
 							'ids'      => wp_parse_id_list( $option ),
@@ -785,7 +785,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 						 * We need to make sure that the wp_template and wp_template_part items are imported at the end.
 						 * Templates and template parts might reference posts (like wp_navigation posts) which should be mapped, but we can only map existing IDs.
 						 */
-						if ( in_array( $post_type, ['wp_template', 'wp_template_part', ] ) ) {
+						if ( in_array( $post_type, [ 'wp_template', 'wp_template_part', ] ) ) {
 							$priority = 910;
 						}
 
@@ -811,7 +811,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 							$data['post_types'][ $post_type ]['ids'] = wp_parse_id_list( $option );
 						}
 					} elseif ( strpos( $key, 'tax_' ) !== false && strpos( $key, 'mi_tax_' ) === false ) {
-						$taxonomy             = str_replace( 'tax_', '', $key );
+						$taxonomy                        = str_replace( 'tax_', '', $key );
 						$data['taxonomies'][ $taxonomy ] = [
 							'name'     => $taxonomy,
 							'ids'      => wp_parse_id_list( $option ),
@@ -870,8 +870,8 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			$get_posts = new WP_Query();
 			$posts     = $get_posts->query( $query_args );
 			foreach ( $posts as &$post ) {
-				$post->meta         = apply_filters( 'sce_export_prepare_post_meta', get_post_meta( $post->ID ), $post );
-				$post->post_content = apply_filters( 'sce_export_prepare_post_content', $post->post_content, $post );
+				$post->meta         = apply_filters( 'sce_export_prepare_post_meta', get_post_meta( $post->ID ), $post, $request );
+				$post->post_content = apply_filters( 'sce_export_prepare_post_content', $post->post_content, $post, $request );
 
 				$post->taxonomies = [];
 				foreach ( array_values( get_post_taxonomies( $post ) ) as $taxonomy ) {
@@ -902,63 +902,208 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			] );
 		}
 
-		public function parse_content_for_images( string $content ): string {
-			$upload_dir = wp_get_upload_dir();
+		/**
+		 * Filter the post content and deal with the images in it.
+		 *
+		 * @param string          $content
+		 * @param WP_Post         $post
+		 * @param WP_REST_Request $request
+		 *
+		 * @return string
+		 */
+		public function parse_content_for_images( string $content, WP_Post $post, WP_REST_Request $request ): string {
 
-			$explode  = explode( '/wp-content/uploads/', $upload_dir['baseurl'] );
-			$base_url = '/wp-content/uploads/';
+			// Since we are in the Gutenberg age now, we need to do a better job in dealing with blocks that hold images.
+			// Mainly wp:image since wp:gallery is comprised of wp:images.
+			if ( has_blocks( $content ) ) {
+				$content = $this->handle_images_in_content_with_blocks( $content, $request );
+			} else {
+				$upload_dir = wp_get_upload_dir();
+
+				$explode  = explode( '/wp-content/uploads/', $upload_dir['baseurl'] );
+				$base_url = '/wp-content/uploads/';
+				if ( ! empty( $explode[1] ) ) {
+					$base_url = trailingslashit( '/wp-content/uploads/' . $explode[1] );
+				}
+				$attachments_regex = '~(?<=src=\").+((' . $base_url . ')|(files\.wordpress\.com)).+(?=[\"\ ])~U';
+
+				preg_match_all( $attachments_regex, $content, $result );
+				if ( ! empty( $result[0] ) && is_array( $result[0] ) ) {
+					foreach ( $result[0] as $i => $match ) {
+						$original_image_url = $match;
+						$new_url            = $this->get_rotated_placeholder_url( $original_image_url, $request );
+						$content            = str_replace( $original_image_url, $new_url, $content );
+					}
+				}
+
+				// Search for shortcodes with attachments ids like gallery.
+				if ( has_shortcode( $content, 'gallery' ) ) {
+					$content = $this->replace_gallery_shortcodes_ids( $content, $request );
+				}
+			}
+
+			return $content;
+		}
+
+		protected function handle_images_in_content_with_blocks( string $post_content, WP_REST_Request $request ): string {
+			// We will only do the work for post content with blocks and if the WP version is at least 5.9.
+			if ( ! has_blocks( $post_content ) || ! version_compare( get_bloginfo( 'version' ), '5.9', '>=' ) ) {
+				return $post_content;
+			}
+
+			$upload_dir = wp_get_upload_dir();
+			$explode    = explode( '/wp-content/uploads/', $upload_dir['baseurl'] );
+			$base_url   = '/wp-content/uploads/';
 			if ( ! empty( $explode[1] ) ) {
 				$base_url = trailingslashit( '/wp-content/uploads/' . $explode[1] );
 			}
 			$attachments_regex = '~(?<=src=\").+((' . $base_url . ')|(files\.wordpress\.com)).+(?=[\"\ ])~U';
 
-			preg_match_all( $attachments_regex, $content, $result );
-			if ( ! empty( $result[0] ) && is_array( $result[0] ) ) {
-				foreach ( $result[0] as $i => $match ) {
-					$original_image_url = $match;
-					$new_url            = $this->get_rotated_placeholder_url( $original_image_url );
-					$content            = str_replace( $original_image_url, $new_url, $content );
+			$has_updated_content = false;
+			$new_content         = '';
+			$template_blocks     = parse_blocks( $post_content );
+
+			$blocks = _flatten_blocks( $template_blocks );
+			foreach ( $blocks as &$block ) {
+				// Handle all the blocks that may need handling.
+
+				// Replace attachment ids in wp:image block and the img src that is inside it.
+				if (
+					'core/image' === $block['blockName'] &&
+					! empty( $block['attrs']['id'] )
+				) {
+					$current_wp_image_id       = absint( $block['attrs']['id'] );
+					$replacement_media_details = $this->get_rotated_placeholder( $current_wp_image_id, $request );
+					if ( empty( $replacement_media_details['id'] ) ) {
+						continue;
+					}
+
+					// Set the replacement attachment ID in the block attributes.
+					// This is the attachment ID as imported by the requesting website.
+					$block['attrs']['id'] = $replacement_media_details['id'];
+					$has_updated_content  = true;
+
+					if ( empty( $block['innerContent'] ) ) {
+						continue;
+					}
+
+					// Now deal with the inner content of the block (the <img> mainly).
+					$replacement_size = 'full';
+					if ( ! empty( $block['attrs']['sizeSlug'] ) && ! empty( $replacement_media_details['sizes'][ $block['attrs']['sizeSlug'] ] ) ) {
+						$replacement_size = esc_attr( $block['attrs']['sizeSlug'] );
+					}
+
+					foreach ( $block['innerContent'] as $key => $inner_content ) {
+						preg_match_all( $attachments_regex, $inner_content, $result );
+						if ( ! empty( $result[0] ) && is_array( $result[0] ) ) {
+							foreach ( $result[0] as $i => $match ) {
+								$original_image_url = $match;
+								$inner_content      = str_replace( $original_image_url, $replacement_media_details['sizes'][ $replacement_size ], $inner_content );
+							}
+						}
+
+						// Replace the wp-image-%id% class that might be present.
+						$inner_content = str_replace( 'wp-image-' . $current_wp_image_id, 'wp-image-' . $replacement_media_details['id'], $inner_content );
+
+						$block['innerContent'][ $key ] = $inner_content;
+					}
+				}
+
+				// Replace attachment details in wp:novablocks/supernova-item block.
+				if (
+					'novablocks/supernova-item' === $block['blockName']
+					&& ! empty( $block['attrs']['images'] )
+					&& is_array( $block['attrs']['images'] )
+				) {
+					foreach ( $block['attrs']['images'] as $key => $image_details ) {
+						// We want to ignore images from unsplash.
+						if ( empty( $image_details['id'] )
+						     || ! is_numeric( $image_details['id'] )
+						     || false !== strpos( $block['attrs']['images'][ $key ]['url'], 'unsplash.com' )
+						) {
+							continue;
+						}
+
+						$current_wp_image_id       = absint( $image_details['id'] );
+						$replacement_media_details = $this->get_rotated_placeholder( $current_wp_image_id, $request );
+						if ( empty( $replacement_media_details['id'] ) ) {
+							continue;
+						}
+
+						// Set the replacement attachment ID in the block attributes.
+						// This is the attachment ID as imported by the requesting website.
+						$block['attrs']['images'][ $key ]['id'] = $replacement_media_details['id'];
+						if ( ! empty( $replacement_media_details['sizes']['full'] ) ) {
+							$block['attrs']['images'][ $key ]['url'] = $replacement_media_details['sizes']['full'];
+						}
+
+						// Now deal with the sizes.
+						if ( ! empty( $image_details['sizes'] ) && is_array( $image_details['sizes'] ) ) {
+							foreach ( $image_details['sizes'] as $size => $size_details ) {
+								if ( empty( $replacement_media_details['sizes'][ $size ] ) ) {
+									continue;
+								}
+
+								$image_details['sizes'][ $size ]['url'] = $replacement_media_details['sizes'][ $size ];
+							}
+
+							$block['attrs']['images'][ $key ]['sizes'] = $image_details['sizes'];
+						}
+
+						$has_updated_content = true;
+					}
+				}
+
+				// Replace attachment ids in wp:shortcode block that might contain galleries.
+				if (
+					'core/shortcode' === $block['blockName']
+					&& ! empty( $block['innerContent'] )
+				) {
+					foreach ( $block['innerContent'] as $key => $inner_content ) {
+						if ( has_shortcode( $inner_content, 'gallery' ) ) {
+							$block['innerContent'][ $key ] = $this->replace_gallery_shortcodes_ids( $inner_content, $request );
+							$has_updated_content           = true;
+						}
+					}
 				}
 			}
 
-			// search for shortcodes with attachments ids like gallery
-			if ( has_shortcode( $content, 'gallery' ) ) {
-				$content = $this->replace_gallery_shortcodes_ids( $content );
+			if ( $has_updated_content ) {
+				foreach ( $template_blocks as &$block ) {
+					$new_content .= serialize_block( $block );
+				}
+
+				return $new_content;
 			}
 
-			return $content;
+			return $post_content;
 		}
 
-		public function replace_gallery_shortcodes_ids( string $content ): string {
-			// pregmatch only the ids attribute
+		public function replace_gallery_shortcodes_ids( string $content, WP_REST_Request $request ): string {
+			// pregmatch only the ids attribute.
 			$pattern = '((\[gallery.*])?ids=\"(.*)\")';
 
-			$content = preg_replace_callback( $pattern, array(
-				$this,
-				'replace_gallery_shortcodes_ids_pregmatch_callback',
-			), $content );
+			$content = preg_replace_callback( $pattern, function ( $matches ) use ( $request ) {
+				if ( ! empty( $matches[2] ) ) {
+					$replace_ids = [];
+					$matches[2]  = explode( ',', $matches[2] );
+					foreach ( $matches[2] as $key => $attach_id ) {
+						$replace_ids[ $key ] = $this->get_rotated_placeholder_id( $attach_id, $request );
+					}
+
+					$replace_string = implode( ',', $replace_ids );
+
+					return ' ids="' . $replace_string . '"';
+				}
+
+				// Do not replace anything if we have made it thus far.
+				return $matches[0];
+			}, $content );
 
 			return $content;
 		}
 
-		public function replace_gallery_shortcodes_ids_pregmatch_callback( $matches ) {
-			if ( ! empty( $matches[2] ) ) {
-				$replace_ids = [];
-				$matches[2]  = explode( ',', $matches[2] );
-				foreach ( $matches[2] as $key => $attach_id ) {
-					$replace_ids[ $key ] = $this->get_rotated_placeholder_id( $attach_id );
-				}
-
-				$replace_string = implode( ',', $replace_ids );
-
-				return ' ids="' . $replace_string . '"';
-			}
-
-			// Do not replace anything if we have reached so far
-			return $matches[0];
-		}
-
-		public function prepare_post_meta( array $metas ): array {
+		public function prepare_post_meta( array $metas, WP_Post $post, WP_REST_Request $request ): array {
 
 			// useless meta
 			unset( $metas['_edit_lock'] );
@@ -968,7 +1113,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			unset( $metas['_edit_last'] );
 			unset( $metas['_yoast_wpseo_content_score'] );
 
-			// usually the attachment_metadata will be regenerated
+			// Usually the attachment_metadata will be regenerated.
 			unset( $metas['_wp_attached_file'] );
 
 			foreach ( $this->gallery_meta_keys as $gallery_key ) {
@@ -976,7 +1121,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 					$selected_images = explode( ',', $metas[ $gallery_key ][0] );
 
 					foreach ( $selected_images as $i => $attach_id ) {
-						$selected_images[ $i ] = $this->get_rotated_placeholder_id( $attach_id );
+						$selected_images[ $i ] = $this->get_rotated_placeholder_id( $attach_id, $request );
 					}
 
 					$metas[ $gallery_key ] = [ join( ',', $selected_images ) ];
@@ -1039,7 +1184,9 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				] );
 			}
 
-			$file_path = get_attached_file( absint( $params['id'] ) );
+			$attachment_id = absint( $params['id'] );
+
+			$file_path = get_attached_file( $attachment_id );
 			if ( empty( $file_path ) || ! file_exists( $file_path ) ) {
 				return rest_ensure_response( [
 					'code'    => 'missing_attachment',
@@ -1068,12 +1215,29 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 			$base64 = 'data:' . $file_info['type'] . ';base64,' . base64_encode( $imageData );
 
+			// Gather all the available image URls to be used for replacement procedures.
+			$attachment_urls = [];
+			if ( wp_attachment_is_image( $attachment_id ) ) {
+				// Make sure that the original image is in place.
+				$attachment_urls['full'] = wp_get_original_image_url( $attachment_id );
+
+				$image_sizes = get_intermediate_image_sizes();
+				foreach ( $image_sizes as $image_size ) {
+					$image_size_url = wp_get_attachment_image_url( $attachment_id, $image_size );
+					if ( ! empty( $image_size_url ) ) {
+						$attachment_urls[ $image_size ] = $image_size_url;
+					}
+				}
+			}
+
 			return rest_ensure_response( [
 				'code'    => 'success',
 				'message' => '',
 				'data'    => [
 					'media' => [
 						'title'     => pathinfo( $file_path, PATHINFO_FILENAME ),
+						'permalink' => get_attachment_link( $attachment_id ),
+						'urls'      => $attachment_urls,
 						'mime_type' => $file_info['type'],
 						'ext'       => $file_info['ext'],
 						'data'      => $base64,
@@ -1124,7 +1288,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 				if ( isset( $widget_val[ $widget['type-index'] ] ) ) {
 					// Allow others to take action and apply a custom logic to the widget data, before export (think replacing image ids with new ones).
-					$widgets_array[ $widget['type'] ][ $widget['type-index'] ] = apply_filters( 'pixcare_sce_widget_data_export_' . $widget['type'], $widget_val[ $widget['type-index'] ], $widget['type'], $params );
+					$widgets_array[ $widget['type'] ][ $widget['type-index'] ] = apply_filters( 'pixcare_sce_widget_data_export_' . $widget['type'], $widget_val[ $widget['type-index'] ], $widget['type'], $request );
 				}
 
 				if ( isset( $widgets_array[ $widget['type'] ]['_multiwidget'] ) ) {
@@ -1464,15 +1628,15 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			return $widget_data;
 		}
 
-		public function prepare_menu_widgets( array $widget_data ): array {
+		public function prepare_menu_widgets( array $widget_data, string $type, WP_REST_Request $request ): array {
 			foreach ( $widget_data as $widget_key => $widget ) {
 				if ( '_multiwidget' === $widget_key || ! isset( $widget_data[ $widget_key ]['nav_menu'] ) ) {
 					continue;
 				}
 
-				$id = $widget_data[ $widget_key ]['nav_menu'];
+				$id = absint( $widget_data[ $widget_key ]['nav_menu'] );
 
-				$widget_data[ $widget_key ]['nav_menu'] = $this->get_new_term_id( $id );
+				$widget_data[ $widget_key ]['nav_menu'] = $this->get_new_term_id( $id, $request );
 			}
 
 			return $widget_data;
@@ -1576,17 +1740,64 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			return false;
 		}
 
-		protected function get_client_ignored_images(): array {
-			if ( isset( $_POST['ignored_images'] ) && is_array( $_POST['ignored_images'] ) ) {
-				return $_POST['ignored_images'];
+		protected function get_client_ignored_images( WP_REST_Request $request ): array {
+			$params = $request->get_params();
+			if ( isset( $params['ignored_images'] ) && is_array( $params['ignored_images'] ) ) {
+				return $params['ignored_images'];
 			}
 
 			return [];
 		}
 
-		protected function get_rotated_placeholder_id( $original_id ) {
-			$client_placeholders   = $this->get_client_placeholders();
-			$client_ignored_images = $this->get_client_ignored_images();
+		/**
+		 * The client may send us a list of imported placeholders.
+		 * This methods returns them and the form should be a map like: "old_id" => "new_id"
+		 *
+		 * @param WP_REST_Request $request
+		 *
+		 * @return array
+		 */
+		private function get_client_placeholders( WP_REST_Request $request ): array {
+			$params = $request->get_params();
+			if ( ! isset( $params['placeholders'] ) || ! is_array( $params['placeholders'] ) ) {
+				return [];
+			}
+
+			if ( empty( $this->client_placeholders ) ) {
+				$this->client_placeholders = $params['placeholders'];
+			} else {
+				$keys = array_keys( $this->client_placeholders );
+				$val  = $this->client_placeholders[ $keys[0] ];
+				unset( $this->client_placeholders[ $keys[0] ] );
+				$this->client_placeholders[ $keys[0] ] = $val;
+			}
+
+			return $this->client_placeholders;
+		}
+
+		protected function get_rotated_placeholder( $original_id, WP_REST_Request $request ) {
+			$client_ignored_images = $this->get_client_ignored_images( $request );
+
+			// If the $original_id is among the ignored images, we will just return the new attachment id.
+			if ( isset( $client_ignored_images[ $original_id ] ) ) {
+				return $client_ignored_images[ $original_id ];
+			}
+
+			// If the attachment is not ignored, we will replace it with a random one from the placeholders list.
+			$client_placeholders = $this->get_client_placeholders( $request );
+			// Get a random $client_placeholders new attachment id
+			// (aka the ID of the attachment as imported in the requesting site).
+			$new_thumb_key = array_rand( $client_placeholders, 1 );
+			if ( isset ( $client_placeholders[ $new_thumb_key ] ) ) {
+				return $client_placeholders[ $new_thumb_key ];
+			}
+
+			// We should never reach this place.
+			return [];
+		}
+
+		protected function get_rotated_placeholder_id( $original_id, WP_REST_Request $request ) {
+			$client_ignored_images = $this->get_client_ignored_images( $request );
 
 			// If the $original_id is among the ignored images, we will just return the new attachment id.
 			if ( isset( $client_ignored_images[ $original_id ]['id'] ) ) {
@@ -1594,8 +1805,9 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			}
 
 			// If the attachment is not ignored, we will replace it with a random one from the placeholders list.
-
-			// get a random $client_placeholders key
+			$client_placeholders = $this->get_client_placeholders( $request );
+			// Get a random $client_placeholders new attachment id
+			// (aka the ID of the attachment as imported in the requesting site).
 			$new_thumb_key = array_rand( $client_placeholders, 1 );
 			if ( isset ( $client_placeholders[ $new_thumb_key ]['id'] ) ) {
 				return $client_placeholders[ $new_thumb_key ]['id'];
@@ -1606,13 +1818,14 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		}
 
 		/**
-		 * @param string $original_image_url Original image URL.
+		 * @param string          $original_image_url Original image URL.
+		 * @param WP_REST_Request $request
 		 *
 		 * @return string
 		 */
-		protected function get_rotated_placeholder_url( string $original_image_url ): string {
-			$client_placeholders   = $this->get_client_placeholders();
-			$client_ignored_images = $this->get_client_ignored_images();
+		protected function get_rotated_placeholder_url( string $original_image_url, WP_REST_Request $request ): string {
+			$client_placeholders   = $this->get_client_placeholders( $request );
+			$client_ignored_images = $this->get_client_ignored_images( $request );
 			$attach_id             = attachment_url_to_postid( $original_image_url );
 
 			// If the $original_image_url is among the ignored images, we will just return the new attachment URL.
@@ -1632,35 +1845,13 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			return '#';
 		}
 
-		/**
-		 * The client may send us a list of imported placeholders.
-		 * This methods returns them and the form should be a map like: "old_id" => "new_id"
-		 *
-		 * @return array
-		 */
-		private function get_client_placeholders(): array {
-			if ( ! isset( $_POST['placeholders'] ) || ! is_array( $_POST['placeholders'] ) ) {
+		private function get_client_posts( WP_REST_Request $request ): array {
+			$params = $request->get_params();
+			if ( empty( $params['post_types'] ) || ! is_array( $params['post_types'] ) ) {
 				return [];
 			}
 
-			if ( empty( $this->client_placeholders ) ) {
-				$this->client_placeholders = $_POST['placeholders'];
-			} else {
-				$keys = array_keys( $this->client_placeholders );
-				$val  = $this->client_placeholders[ $keys[0] ];
-				unset( $this->client_placeholders[ $keys[0] ] );
-				$this->client_placeholders[ $keys[0] ] = $val;
-			}
-
-			return $this->client_placeholders;
-		}
-
-		private function get_client_posts(): array {
-			if ( empty( $_POST['post_types'] ) || ! is_array( $_POST['post_types'] ) ) {
-				return [];
-			}
-
-			$types = (array) $_POST['post_types'];
+			$types = (array) $params['post_types'];
 
 			foreach ( $types as $key => $posts ) {
 				$types[ $key ] = array_map( 'intval', $posts );
@@ -1669,12 +1860,13 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			return $types;
 		}
 
-		private function get_client_terms(): array {
-			if ( empty( $_POST['taxonomies'] ) || ! is_array( $_POST['taxonomies'] ) ) {
+		private function get_client_terms( WP_REST_Request $request ): array {
+			$params = $request->get_params();
+			if ( empty( $params['taxonomies'] ) || ! is_array( $params['taxonomies'] ) ) {
 				return [];
 			}
 
-			$terms = (array) $_POST['taxonomies'];
+			$terms = (array) $params['taxonomies'];
 
 			foreach ( $terms as $key => $term ) {
 				$terms[ $key ] = array_map( 'intval', $term );
@@ -1683,8 +1875,8 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			return $terms;
 		}
 
-		private function get_new_post_id( $id ) {
-			$types = $this->get_client_posts();
+		private function get_new_post_id( int $id, WP_REST_Request $request ): int {
+			$types = $this->get_client_posts( $request );
 
 			if ( isset( $types[ $id ] ) ) {
 				return $types[ $id ];
@@ -1693,8 +1885,8 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			return $id;
 		}
 
-		private function get_new_term_id( $id ) {
-			$terms = $this->get_client_terms();
+		private function get_new_term_id( int $id, WP_REST_Request $request ): int {
+			$terms = $this->get_client_terms( $request );
 
 			if ( isset( $terms[ $id ] ) ) {
 				return $terms[ $id ];
