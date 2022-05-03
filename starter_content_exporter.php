@@ -3,7 +3,7 @@
  * Plugin Name:       Starter Content Exporter
  * Plugin URI:        https://pixelgrade.com/
  * Description:       A plugin which exposes exportable data through the REST API.
- * Version:           1.5.0
+ * Version:           1.5.1
  * Author:            Pixelgrade, Vlad Olaru
  * Author URI:        https://pixelgrade.com/
  * License:           GPL-2.0+
@@ -11,7 +11,7 @@
  * Text Domain:       socket
  * Domain Path:       /languages
  * Requires at least: 5.5.0
- * Tested up to:      5.9.3
+ * Tested up to:      5.9.4
  * Requires PHP:      7.4
  */
 
@@ -110,7 +110,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			add_filter( 'sce_export_prepare_post_meta', [ $this, 'prepare_post_meta' ], 10, 3 );
 
 			// widgets
-			add_filter( 'pixcare_sce_widget_data_export_text', [ $this, 'prepare_text_widgets' ], 10, 1 );
+			add_filter( 'pixcare_sce_widget_data_export_text', [ $this, 'prepare_text_widgets' ], 10, 3 );
 			add_filter( 'pixcare_sce_widget_data_export_nav_menu', [ $this, 'prepare_menu_widgets' ], 10, 3 );
 
 			// Make sure that queries don't get an unbound `posts_per_page` value (-1), via filtering.
@@ -998,7 +998,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 						if ( ! empty( $result[0] ) && is_array( $result[0] ) ) {
 							foreach ( $result[0] as $i => $match ) {
 								$original_image_url = $match;
-								$inner_content      = str_replace( $original_image_url, $replacement_media_details['sizes'][ $replacement_size ], $inner_content );
+								$inner_content      = str_replace( $original_image_url, $replacement_media_details['sizes'][ $replacement_size ]['url'], $inner_content );
 							}
 						}
 
@@ -1009,9 +1009,10 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 					}
 				}
 
-				// Replace attachment details in wp:novablocks/supernova-item block.
+				// Replace attachment details in wp:novablocks/supernova-item and wp:novablocks/media block,
+				// since their media store is similar.
 				if (
-					'novablocks/supernova-item' === $block['blockName']
+					in_array( $block['blockName'], [ 'novablocks/supernova-item', 'novablocks/media', ] )
 					&& ! empty( $block['attrs']['images'] )
 					&& is_array( $block['attrs']['images'] )
 				) {
@@ -1019,7 +1020,8 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 						// We want to ignore images from unsplash.
 						if ( empty( $image_details['id'] )
 						     || ! is_numeric( $image_details['id'] )
-						     || false !== strpos( $block['attrs']['images'][ $key ]['url'], 'unsplash.com' )
+						     || ( ! empty( $block['attrs']['images'][ $key ]['url'] )
+						          && false !== strpos( $block['attrs']['images'][ $key ]['url'], 'unsplash.com' ) )
 						) {
 							continue;
 						}
@@ -1033,21 +1035,89 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 						// Set the replacement attachment ID in the block attributes.
 						// This is the attachment ID as imported by the requesting website.
 						$block['attrs']['images'][ $key ]['id'] = $replacement_media_details['id'];
-						if ( ! empty( $replacement_media_details['sizes']['full'] ) ) {
-							$block['attrs']['images'][ $key ]['url'] = $replacement_media_details['sizes']['full'];
+						// Handle the url attribute.
+						if ( isset( $block['attrs']['images'][ $key ]['url'] )
+						     && ! empty( $replacement_media_details['sizes']['full']['url'] ) ) {
+
+							$block['attrs']['images'][ $key ]['url'] = $replacement_media_details['sizes']['full']['url'];
 						}
 
-						// Now deal with the sizes.
+						// Handle the sizes attribute.
 						if ( ! empty( $image_details['sizes'] ) && is_array( $image_details['sizes'] ) ) {
 							foreach ( $image_details['sizes'] as $size => $size_details ) {
-								if ( empty( $replacement_media_details['sizes'][ $size ] ) ) {
+								if ( empty( $replacement_media_details['sizes'][ $size ]['url'] ) ) {
 									continue;
 								}
 
-								$image_details['sizes'][ $size ]['url'] = $replacement_media_details['sizes'][ $size ];
+								$image_details['sizes'][ $size ]['url'] = $replacement_media_details['sizes'][ $size ]['url'];
 							}
 
 							$block['attrs']['images'][ $key ]['sizes'] = $image_details['sizes'];
+						}
+
+						$has_updated_content = true;
+					}
+				}
+
+				// Replace attachment details in wp:novablocks/hero and wp:novablocks/card block.
+				if (
+					in_array( $block['blockName'], [ 'novablocks/hero', 'novablocks/card' ] )
+					&& ! empty( $block['attrs']['media']['id'] )
+					&& is_numeric( $block['attrs']['media']['id'] )
+					// We want to ignore images from unsplash.
+					&& ( empty( $block['attrs']['media']['url'] )
+					     || false === strpos( $block['attrs']['media']['url'], 'unsplash.com' ) )
+				) {
+					$current_wp_image_id       = absint( $block['attrs']['media']['id'] );
+					$replacement_media_details = $this->get_rotated_placeholder( $current_wp_image_id, $request );
+					if ( ! empty( $replacement_media_details['id'] ) ) {
+
+						// Set the replacement attachment ID in the block attributes.
+						// This is the attachment ID as imported by the requesting website.
+						$block['attrs']['media']['id'] = $replacement_media_details['id'];
+						// Handle the url attribute.
+						if ( isset( $block['attrs']['media']['url'] )
+						     && ! empty( $replacement_media_details['sizes']['full']['url'] ) ) {
+
+							$block['attrs']['media']['url'] = $replacement_media_details['sizes']['full']['url'];
+						}
+
+						// The width attribute.
+						if ( isset( $block['attrs']['media']['width'] ) ) {
+							$block['attrs']['media']['width'] = $replacement_media_details['sizes']['full']['width'];
+						}
+
+						// The height attribute.
+						if ( isset( $block['attrs']['media']['height'] ) ) {
+							$block['attrs']['media']['height'] = $replacement_media_details['sizes']['full']['height'];
+						}
+
+						// The orientation attribute.
+						if ( isset( $block['attrs']['media']['orientation'] ) ) {
+							$block['attrs']['media']['orientation'] = (int) $replacement_media_details['sizes']['full']['width'] >= (int) $replacement_media_details['sizes']['full']['height'] ? 'landscape' : 'portrait';
+						}
+
+						// Handle the sizes attribute.
+						if ( ! empty( $block['attrs']['media']['sizes'] ) && is_array( $block['attrs']['media']['sizes'] ) ) {
+							foreach ( $block['attrs']['media']['sizes'] as $size => $size_details ) {
+								if ( empty( $replacement_media_details['sizes'][ $size ]['url'] ) ) {
+									continue;
+								}
+
+								$block['attrs']['media']['sizes'][ $size ]['url'] = $replacement_media_details['sizes'][ $size ]['url'];
+
+								if ( isset( $block['attrs']['media']['sizes'][ $size ]['width'] ) ) {
+									$block['attrs']['media']['sizes'][ $size ]['width'] = $replacement_media_details['sizes'][ $size ]['width'];
+								}
+
+								if ( isset( $block['attrs']['media']['sizes'][ $size ]['height'] ) ) {
+									$block['attrs']['media']['sizes'][ $size ]['height'] = $replacement_media_details['sizes'][ $size ]['height'];
+								}
+
+								if ( isset( $block['attrs']['media']['sizes'][ $size ]['orientation'] ) ) {
+									$block['attrs']['media']['sizes'][ $size ]['orientation'] = (int) $replacement_media_details['sizes'][ $size ]['width'] >= (int) $replacement_media_details['sizes'][ $size ]['height'] ? 'landscape' : 'portrait';
+								}
+							}
 						}
 
 						$has_updated_content = true;
@@ -1589,7 +1659,14 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			return $settings;
 		}
 
-		public function prepare_text_widgets( array $widget_data ): array {
+		/**
+		 * @param array           $widget_data
+		 * @param string          $type
+		 * @param WP_REST_Request $request
+		 *
+		 * @return array
+		 */
+		public function prepare_text_widgets( array $widget_data, string $type, WP_REST_Request $request ): array {
 
 			foreach ( $widget_data as $widget_key => $widget ) {
 				if ( '_multiwidget' === $widget_key || ! isset( $widget_data[ $widget_key ]['text'] ) ) {
@@ -1612,13 +1689,13 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 				foreach ( $result[0] as $i => $match ) {
 					$original_image_url = $match;
-					$new_url            = $this->get_rotated_placeholder_url( $original_image_url );
+					$new_url            = $this->get_rotated_placeholder_url( $original_image_url, $request );
 					$content            = str_replace( $original_image_url, $new_url, $content );
 				}
 
 				// search for shortcodes with attachments ids like gallery
 				if ( has_shortcode( $content, 'gallery' ) ) {
-					$content = $this->replace_gallery_shortcodes_ids( $content );
+					$content = $this->replace_gallery_shortcodes_ids( $content, $request );
 				}
 
 				$widget_data[ $widget_key ]['text'] = $content;
@@ -1740,10 +1817,71 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			return false;
 		}
 
+		/**
+		 * @param array $media
+		 *
+		 * @return array
+		 */
+		protected function normalize_client_media( array $media ): array {
+			if ( ! is_array( $media ) ) {
+				return [];
+			}
+
+			foreach ( $media as $original_id => $value ) {
+				// Each media entry should have an id representing the imported attachment id.
+				// Use the original id if missing.
+				if ( ! isset( $value['id'] ) ) {
+					$value['id'] = $original_id;
+				}
+
+				if ( ! isset( $value['sizes'] ) || ! is_array( $value['sizes'] ) ) {
+					$value['sizes'] = [];
+				}
+
+				foreach ( $value['sizes'] as $size => $size_details ) {
+					if ( is_string( $size_details ) ) {
+						$value['sizes'][ $size ] = [
+							'url'    => esc_url_raw( $size_details ),
+							'width'  => 0,
+							'height' => 0,
+						];
+
+						continue;
+					}
+
+					if ( is_array( $size_details ) && wp_is_numeric_array( $size_details ) ) {
+						$value['sizes'][ $size ] = [
+							'url' => $size_details[0],
+						];
+						if ( isset( $size_details[1] ) ) {
+							$value['sizes'][ $size ]['width'] = absint( $size_details[1] );
+						}
+						if ( isset( $size_details[2] ) ) {
+							$value['sizes'][ $size ]['height'] = absint( $size_details[2] );
+						}
+
+						$value['sizes'][ $size ] = wp_parse_args( $value['sizes'][ $size ], [ 'url'    => '',
+						                                                                      'width'  => 0,
+						                                                                      'height' => 0,
+						] );
+
+						continue;
+					}
+
+					// If we have reached thus far, remove the size.
+					unset( $value['sizes'][ $size ] );
+				}
+
+				$media[ $original_id ] = $value;
+			}
+
+			return $media;
+		}
+
 		protected function get_client_ignored_images( WP_REST_Request $request ): array {
 			$params = $request->get_params();
-			if ( isset( $params['ignored_images'] ) && is_array( $params['ignored_images'] ) ) {
-				return $params['ignored_images'];
+			if ( isset( $params['ignored_images'] ) ) {
+				return $this->normalize_client_media( $params['ignored_images'] );
 			}
 
 			return [];
@@ -1764,7 +1902,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			}
 
 			if ( empty( $this->client_placeholders ) ) {
-				$this->client_placeholders = $params['placeholders'];
+				$this->client_placeholders = $this->normalize_client_media( $params['placeholders'] );
 			} else {
 				$keys = array_keys( $this->client_placeholders );
 				$val  = $this->client_placeholders[ $keys[0] ];
@@ -1775,7 +1913,13 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			return $this->client_placeholders;
 		}
 
-		protected function get_rotated_placeholder( $original_id, WP_REST_Request $request ) {
+		/**
+		 * @param                 $original_id
+		 * @param WP_REST_Request $request
+		 *
+		 * @return array
+		 */
+		protected function get_rotated_placeholder( $original_id, WP_REST_Request $request ): array {
 			$client_ignored_images = $this->get_client_ignored_images( $request );
 
 			// If the $original_id is among the ignored images, we will just return the new attachment id.
@@ -1829,16 +1973,16 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			$attach_id             = attachment_url_to_postid( $original_image_url );
 
 			// If the $original_image_url is among the ignored images, we will just return the new attachment URL.
-			if ( isset( $client_ignored_images[ $attach_id ]['sizes']['full'] ) ) {
-				return $client_ignored_images[ $attach_id ]['sizes']['full'];
+			if ( isset( $client_ignored_images[ $attach_id ]['sizes']['full']['url'] ) ) {
+				return $client_ignored_images[ $attach_id ]['sizes']['full']['url'];
 			}
 
 			// If the attachment is not ignored, we will replace it with a random one from the placeholders list.
 
-			// get a random $client_placeholders key
+			// Get a random $client_placeholders key.
 			$new_thumb_key = array_rand( $client_placeholders, 1 );
-			if ( isset ( $client_placeholders[ $new_thumb_key ]['sizes']['full'] ) ) {
-				return $client_placeholders[ $new_thumb_key ]['sizes']['full'];
+			if ( isset ( $client_placeholders[ $new_thumb_key ]['sizes']['full']['url'] ) ) {
+				return $client_placeholders[ $new_thumb_key ]['sizes']['full']['url'];
 			}
 
 			// We should never reach this place.
