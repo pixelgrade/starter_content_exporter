@@ -1,19 +1,18 @@
 <?php
 
-if ( ! class_exists( 'safe_svg_attributes' ) ) {
-	class safe_svg_attributes extends \enshrined\svgSanitize\data\AllowedAttributes {
+
+class safe_svg_attributes extends \enshrined\svgSanitize\data\AllowedAttributes {
+
+	/**
+	 * Returns an array of attributes
+	 *
+	 * @return array
+	 */
+	public static function getAttributes() {
 
 		/**
-		 * Returns an array of attributes
-		 *
-		 * @return array
+		 * var  array Attributes that are allowed.
 		 */
-		public static function getAttributes() {
-
-			/**
-			 * var  array Attributes that are allowed.
-			 */
-			return apply_filters( 'svg_allowed_attributes', parent::getAttributes() );
-		}
+		return apply_filters( 'svg_allowed_attributes', parent::getAttributes() );
 	}
 }
