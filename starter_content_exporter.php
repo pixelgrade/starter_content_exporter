@@ -1046,6 +1046,8 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 						if ( ! empty( $image_details['sizes'] ) && is_array( $image_details['sizes'] ) ) {
 							foreach ( $image_details['sizes'] as $size => $size_details ) {
 								if ( empty( $replacement_media_details['sizes'][ $size ]['url'] ) ) {
+									// We will remove this size from the attributes to avoid leaving sizes with wrong urls.
+									unset( $image_details['sizes'][ $size ] );
 									continue;
 								}
 
@@ -1101,6 +1103,8 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 						if ( ! empty( $block['attrs']['media']['sizes'] ) && is_array( $block['attrs']['media']['sizes'] ) ) {
 							foreach ( $block['attrs']['media']['sizes'] as $size => $size_details ) {
 								if ( empty( $replacement_media_details['sizes'][ $size ]['url'] ) ) {
+									// We will remove this size from the attributes to avoid leaving sizes with wrong urls.
+									unset( $block['attrs']['media']['sizes'][ $size ] );
 									continue;
 								}
 
@@ -1839,6 +1843,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				}
 
 				foreach ( $value['sizes'] as $size => $size_details ) {
+					// We have just the URL of the size.
 					if ( is_string( $size_details ) ) {
 						$value['sizes'][ $size ] = [
 							'url'    => esc_url_raw( $size_details ),
@@ -1849,6 +1854,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 						continue;
 					}
 
+					// We have the size details in a numerically keyed array. Convert it to string keys.
 					if ( is_array( $size_details ) && wp_is_numeric_array( $size_details ) ) {
 						$value['sizes'][ $size ] = [
 							'url' => $size_details[0],
@@ -1861,6 +1867,17 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 						}
 
 						$value['sizes'][ $size ] = wp_parse_args( $value['sizes'][ $size ], [
+							'url'    => '',
+							'width'  => 0,
+							'height' => 0,
+						] );
+
+						continue;
+					}
+
+					// We have a string keyed array. Just make sure that all the needed entries are in place.
+					if ( is_array( $size_details ) ) {
+						$value['sizes'][ $size ] = wp_parse_args( $size_details, [
 							'url'    => '',
 							'width'  => 0,
 							'height' => 0,
