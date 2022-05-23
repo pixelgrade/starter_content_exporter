@@ -33,7 +33,7 @@ The data JSON has two entries `post_types` and `taxonomies`; each of hold a list
 	- `post_type` – default to `post`.
 	- `include` – is a list of posts ids separated by comma. 
 	- `placeholders` should be a list of attachments ids which should map the selected placeholders with the imported attachments on the client.
-	- `ignored_images` should be a list of attachements ids which should map the selected ignored_images with the ones imported on the client.
+	- `ignored_images` should be a list of attachments ids which should map the selected ignored_images with the ones imported on the client.
 
 * GET – `wp-json/sce/v1/terms`
 	- Returns all the data for a given `taxonomy` and a list of term ids separated by comma in `include`.

@@ -972,8 +972,8 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 					'core/image' === $block['blockName'] &&
 					! empty( $block['attrs']['id'] )
 				) {
-					$current_wp_image_id       = absint( $block['attrs']['id'] );
-					$replacement_media_details = $this->get_rotated_placeholder( $current_wp_image_id, $request );
+					$original_wp_image_id      = absint( $block['attrs']['id'] );
+					$replacement_media_details = $this->get_rotated_placeholder( $original_wp_image_id, $request );
 					if ( empty( $replacement_media_details['id'] ) ) {
 						continue;
 					}
@@ -1003,7 +1003,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 						}
 
 						// Replace the wp-image-%id% class that might be present.
-						$inner_content = str_replace( 'wp-image-' . $current_wp_image_id, 'wp-image-' . $replacement_media_details['id'], $inner_content );
+						$inner_content = str_replace( 'wp-image-' . $original_wp_image_id, 'wp-image-' . $replacement_media_details['id'], $inner_content );
 
 						$block['innerContent'][ $key ] = $inner_content;
 					}
@@ -1026,8 +1026,8 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 							continue;
 						}
 
-						$current_wp_image_id       = absint( $image_details['id'] );
-						$replacement_media_details = $this->get_rotated_placeholder( $current_wp_image_id, $request );
+						$original_wp_image_id      = absint( $image_details['id'] );
+						$replacement_media_details = $this->get_rotated_placeholder( $original_wp_image_id, $request );
 						if ( empty( $replacement_media_details['id'] ) ) {
 							continue;
 						}
@@ -1068,8 +1068,8 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 					&& ( empty( $block['attrs']['media']['url'] )
 					     || false === strpos( $block['attrs']['media']['url'], 'unsplash.com' ) )
 				) {
-					$current_wp_image_id       = absint( $block['attrs']['media']['id'] );
-					$replacement_media_details = $this->get_rotated_placeholder( $current_wp_image_id, $request );
+					$original_wp_image_id      = absint( $block['attrs']['media']['id'] );
+					$replacement_media_details = $this->get_rotated_placeholder( $original_wp_image_id, $request );
 					if ( ! empty( $replacement_media_details['id'] ) ) {
 
 						// Set the replacement attachment ID in the block attributes.
@@ -1860,9 +1860,10 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 							$value['sizes'][ $size ]['height'] = absint( $size_details[2] );
 						}
 
-						$value['sizes'][ $size ] = wp_parse_args( $value['sizes'][ $size ], [ 'url'    => '',
-						                                                                      'width'  => 0,
-						                                                                      'height' => 0,
+						$value['sizes'][ $size ] = wp_parse_args( $value['sizes'][ $size ], [
+							'url'    => '',
+							'width'  => 0,
+							'height' => 0,
 						] );
 
 						continue;
