@@ -3,7 +3,7 @@
  * Plugin Name:       Starter Content Exporter
  * Plugin URI:        https://pixelgrade.com/
  * Description:       A plugin which exposes exportable data through the REST API.
- * Version:           1.5.4
+ * Version:           1.5.5
  * Author:            Pixelgrade, Vlad Olaru
  * Author URI:        https://pixelgrade.com/
  * License:           GPL-2.0+
@@ -960,6 +960,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				$base_url = trailingslashit( '/wp-content/uploads/' . $explode[1] );
 			}
 			$attachments_regex = '~(?<=src=\").+((' . $base_url . ')|(files\.wordpress\.com)).+(?=[\"\ ])~U';
+			$media_link_regex = '~(?<=href=\").+((' . $base_url . ')|(files\.wordpress\.com)).+(?=[\"\ ])~U';
 
 			$has_updated_content = false;
 			$new_content         = '';
@@ -996,6 +997,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 					}
 
 					foreach ( $block['innerContent'] as $key => $inner_content ) {
+						// Replace the URL in the <img> src attribute.
 						preg_match_all( $attachments_regex, $inner_content, $result );
 						if ( ! empty( $result[0] ) && is_array( $result[0] ) ) {
 							foreach ( $result[0] as $i => $match ) {
@@ -1006,6 +1008,17 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 						// Replace the wp-image-%id% class that might be present.
 						$inner_content = str_replace( 'wp-image-' . $original_wp_image_id, 'wp-image-' . $replacement_media_details['id'], $inner_content );
+
+						// Replace the URL of the link if the block is configured to link to the media.
+						if ( ! empty( $block['attrs']['linkDestination'] ) && 'media' === $block['attrs']['linkDestination'] ) {
+							preg_match_all( $media_link_regex, $inner_content, $result );
+							if ( ! empty( $result[0] ) && is_array( $result[0] ) ) {
+								foreach ( $result[0] as $i => $match ) {
+									$original_image_url = $match;
+									$inner_content      = str_replace( $original_image_url, $replacement_media_details['sizes'][ 'full' ]['url'], $inner_content );
+								}
+							}
+						}
 
 						$block['innerContent'][ $key ] = $inner_content;
 					}
