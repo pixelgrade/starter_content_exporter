@@ -1440,7 +1440,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				$mi_theme_mods = [];
 			}
 			if ( ! empty( $this->pre_settings['mi_mods'] ) ) {
-				$mi_theme_mods = array_merge( $this->pre_settings['mi_mods'], $options['mi_exported_pre_theme_mods'] );
+				$mi_theme_mods = array_merge( $this->pre_settings['mi_mods'], $mi_theme_mods );
 			}
 
 			$current_theme_mods = get_theme_mods();
@@ -1564,7 +1564,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				$theme_mods_keys = [];
 			}
 			if ( ! empty( $this->pre_settings['mods'] ) ) {
-				$theme_mods_keys = array_merge( $this->pre_settings['mods'], $options['mi_exported_pre_theme_mods'] );
+				$theme_mods_keys = array_merge( $this->pre_settings['mods'], $theme_mods_keys );
 			}
 
 			$current_theme_mods = get_theme_mods();
