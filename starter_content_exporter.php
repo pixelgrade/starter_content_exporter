@@ -605,6 +605,11 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				'callback'            => [ $this, 'rest_export_data_v2' ],
 				'permission_callback' => '__return_true',
 			] );
+			register_rest_route( 'sce/v2', '/layout-units', [
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => [ $this, 'rest_export_layout_units_v2' ],
+				'permission_callback' => '__return_true',
+			] );
 
 			/**
 			 * Register endpoints for fetching individual data details.
@@ -638,6 +643,16 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				'methods'             => WP_REST_Server::CREATABLE,
 				'callback'            => [ $this, 'rest_export_widgets_v2' ],
 				'permission_callback' => '__return_true',
+			] );
+			register_rest_route( 'sce/v2', '/layout-unit-bundles', [
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => [ $this, 'rest_export_layout_unit_bundles_v2' ],
+				'permission_callback' => '__return_true',
+				'args'                => [
+					'units' => [
+						'required' => true,
+					],
+				],
 			] );
 		}
 
@@ -831,6 +846,478 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				'message' => '',
 				'data'    => $data,
 			] );
+		}
+
+		public function rest_export_layout_unit_bundles_v2( WP_REST_Request $request ): WP_REST_Response {
+			$units = $this->get_layout_bundle_request_units( $request );
+			if ( empty( $units ) ) {
+				return rest_ensure_response( [
+					'code'    => 'invalid_units',
+					'message' => 'You need to provide at least one layout unit.',
+					'data'    => [],
+				] );
+			}
+
+			$data_response = $this->rest_export_data_v2();
+			$data_payload  = ( is_object( $data_response ) && method_exists( $data_response, 'get_data' ) ) ? $data_response->get_data() : [];
+			$source_data   = isset( $data_payload['data'] ) && is_array( $data_payload['data'] ) ? $data_payload['data'] : [];
+
+			$bundles = [];
+			foreach ( $units as $unit ) {
+				$unit_post = $this->get_layout_bundle_post( $unit );
+				if ( empty( $unit_post ) ) {
+					continue;
+				}
+
+				$bundle = $this->build_layout_unit_bundle( $unit_post, $source_data, $request );
+				if ( ! empty( $bundle ) ) {
+					$bundles[] = $bundle;
+				}
+			}
+
+			return rest_ensure_response( [
+				'code'    => 'success',
+				'message' => '',
+				'data'    => [
+					'version' => '1',
+					'hash'    => md5( wp_json_encode( $units ) . '|' . wp_json_encode( wp_list_pluck( $bundles, 'hash' ) ) ),
+					'bundles' => $bundles,
+				],
+			] );
+		}
+
+		public function rest_export_layout_units_v2(): WP_REST_Response {
+			$data_response = $this->rest_export_data_v2();
+			$data_payload  = ( is_object( $data_response ) && method_exists( $data_response, 'get_data' ) ) ? $data_response->get_data() : [];
+			$source_data   = isset( $data_payload['data'] ) && is_array( $data_payload['data'] ) ? $data_payload['data'] : [];
+
+			$template_part_posts = $this->get_layout_unit_posts_for_list( 'wp_template_part', $source_data );
+			$template_posts      = $this->get_layout_unit_posts_for_list( 'wp_template', $source_data );
+			$units               = [];
+
+			foreach ( [
+				'wp_template_part' => $template_part_posts,
+				'wp_template'      => $template_posts,
+			] as $post_type => $posts ) {
+				foreach ( $posts as $post ) {
+					if ( empty( $post->ID ) || empty( $post->post_name ) ) {
+						continue;
+					}
+
+					$units[] = [
+						'id'    => absint( $post->ID ),
+						'type'  => $post_type,
+						'slug'  => sanitize_key( $post->post_name ),
+						'title' => ! empty( $post->post_title ) ? wp_strip_all_tags( $post->post_title ) : sanitize_key( $post->post_name ),
+					];
+				}
+			}
+
+			$feature = $this->get_portfolio_layout_feature_unit( $source_data, $template_posts );
+			if ( ! empty( $feature ) ) {
+				$units[] = $feature;
+			}
+
+			return rest_ensure_response( [
+				'code'    => 'success',
+				'message' => '',
+				'data'    => [
+					'units' => $units,
+				],
+			] );
+		}
+
+		private function get_layout_unit_posts_for_list( string $post_type, array $source_data ): array {
+			$ids = [];
+			if ( ! empty( $source_data['post_types'][ $post_type ]['ids'] ) && is_array( $source_data['post_types'][ $post_type ]['ids'] ) ) {
+				$ids = wp_parse_id_list( $source_data['post_types'][ $post_type ]['ids'] );
+			}
+
+			$args = [
+				'post_type'              => $post_type,
+				'post_status'            => 'any',
+				'posts_per_page'         => 100,
+				'no_found_rows'          => true,
+				'ignore_sticky_posts'    => true,
+				'update_post_meta_cache' => false,
+				'update_post_term_cache' => false,
+			];
+
+			if ( ! empty( $ids ) ) {
+				$args['post__in'] = $ids;
+				$args['orderby']  = 'post__in';
+			}
+
+			return get_posts( $args );
+		}
+
+		private function get_portfolio_layout_feature_unit( array $source_data, array $template_posts ): array {
+			if ( empty( $source_data['post_types']['portfolio']['ids'] ) || ! is_array( $source_data['post_types']['portfolio']['ids'] ) ) {
+				return [];
+			}
+
+			$template_slugs = [];
+			foreach ( $template_posts as $post ) {
+				if ( ! empty( $post->post_name ) ) {
+					$template_slugs[] = sanitize_key( $post->post_name );
+				}
+			}
+
+			if ( ! in_array( 'archive-portfolio', $template_slugs, true ) ) {
+				return [];
+			}
+
+			return [
+				'id'            => 'portfolio',
+				'type'          => 'feature',
+				'slug'          => 'portfolio',
+				'title'         => 'Portfolio',
+				'sampleDefault' => true,
+				'sampleCount'   => min( 3, count( $source_data['post_types']['portfolio']['ids'] ) ),
+			];
+		}
+
+		private function get_layout_bundle_request_units( WP_REST_Request $request ): array {
+			$params = $request->get_params();
+			$units  = isset( $params['units'] ) ? $params['units'] : [];
+
+			if ( is_string( $units ) ) {
+				$decoded = json_decode( wp_unslash( $units ), true );
+				$units   = is_array( $decoded ) ? $decoded : [];
+			}
+
+			$normalized = [];
+			$seen       = [];
+			foreach ( (array) $units as $unit ) {
+				if ( ! is_array( $unit ) ) {
+					continue;
+				}
+
+				$type = isset( $unit['type'] ) ? sanitize_key( $unit['type'] ) : '';
+				$slug = isset( $unit['slug'] ) ? sanitize_key( $unit['slug'] ) : '';
+				$id   = isset( $unit['id'] ) ? absint( $unit['id'] ) : 0;
+
+				if ( ! in_array( $type, [ 'wp_template_part', 'wp_template' ], true ) || ( empty( $slug ) && empty( $id ) ) ) {
+					continue;
+				}
+
+				$key = $type . ':' . ( $id ? (string) $id : $slug );
+				if ( isset( $seen[ $key ] ) ) {
+					continue;
+				}
+
+				$entry = [ 'type' => $type ];
+				if ( ! empty( $slug ) ) {
+					$entry['slug'] = $slug;
+				}
+				if ( ! empty( $id ) ) {
+					$entry['id'] = $id;
+				}
+
+				$normalized[] = $entry;
+				$seen[ $key ] = true;
+			}
+
+			return $normalized;
+		}
+
+		private function get_layout_bundle_post( array $unit ) {
+			$type = isset( $unit['type'] ) ? sanitize_key( $unit['type'] ) : '';
+			$id   = isset( $unit['id'] ) ? absint( $unit['id'] ) : 0;
+			$slug = isset( $unit['slug'] ) ? sanitize_key( $unit['slug'] ) : '';
+
+			if ( ! empty( $id ) ) {
+				$post = get_post( $id );
+				if ( $post instanceof WP_Post && $type === $post->post_type ) {
+					return $post;
+				}
+			}
+
+			if ( empty( $slug ) ) {
+				return null;
+			}
+
+			$posts = get_posts( [
+				'name'                   => $slug,
+				'post_type'              => $type,
+				'post_status'            => 'any',
+				'posts_per_page'         => 1,
+				'no_found_rows'          => true,
+				'ignore_sticky_posts'    => true,
+				'update_post_meta_cache' => false,
+				'update_post_term_cache' => false,
+			] );
+
+			return ! empty( $posts[0] ) ? $posts[0] : null;
+		}
+
+		private function build_layout_unit_bundle( WP_Post $unit_post, array $source_data, WP_REST_Request $request ): array {
+			$posts = [
+				$unit_post->post_type => $this->export_layout_bundle_posts( $unit_post->post_type, [ $unit_post->ID ], $request ),
+			];
+			$terms   = [];
+			$objects = [];
+			$media   = [];
+
+			$menu_ids = $this->get_layout_bundle_menu_ids( $unit_post, $source_data );
+			if ( ! empty( $menu_ids ) ) {
+				$terms['nav_menu'] = $this->export_layout_bundle_terms( 'nav_menu', $menu_ids );
+
+				$menu_item_ids = [];
+				foreach ( $menu_ids as $menu_id ) {
+					$menu_items = wp_get_nav_menu_items( $menu_id );
+					if ( empty( $menu_items ) || is_wp_error( $menu_items ) ) {
+						continue;
+					}
+
+					foreach ( $menu_items as $menu_item ) {
+						if ( ! empty( $menu_item->ID ) ) {
+							$menu_item_ids[] = absint( $menu_item->ID );
+						}
+					}
+				}
+
+				$menu_item_ids = array_values( array_unique( array_filter( $menu_item_ids ) ) );
+				if ( ! empty( $menu_item_ids ) ) {
+					$posts['nav_menu_item'] = $this->export_layout_bundle_posts( 'nav_menu_item', $menu_item_ids, $request );
+					$objects                = $this->get_layout_bundle_menu_objects( $posts['nav_menu_item'] );
+				}
+			}
+
+			foreach ( $this->get_layout_bundle_media_ids( $unit_post, $source_data ) as $media_id ) {
+				$source_url = wp_get_attachment_url( $media_id );
+				if ( empty( $source_url ) ) {
+					continue;
+				}
+
+				$media[] = [
+					'id'         => $media_id,
+					'source_url' => esc_url_raw( $source_url ),
+				];
+			}
+
+			$bundle = [
+				'type'    => $unit_post->post_type,
+				'slug'    => sanitize_key( $unit_post->post_name ),
+				'id'      => absint( $unit_post->ID ),
+				'data'    => $source_data,
+				'posts'   => array_filter( $posts ),
+				'terms'   => array_filter( $terms ),
+				'objects' => array_filter( $objects ),
+				'media'   => $media,
+			];
+			$bundle['hash'] = md5( wp_json_encode( [
+				'id'       => $bundle['id'],
+				'modified' => $unit_post->post_modified_gmt,
+				'menus'    => $menu_ids,
+				'media'    => wp_list_pluck( $media, 'id' ),
+			] ) );
+
+			return $bundle;
+		}
+
+		private function export_layout_bundle_posts( string $post_type, array $ids, WP_REST_Request $request ): array {
+			$ids = wp_parse_id_list( $ids );
+			if ( empty( $ids ) ) {
+				return [];
+			}
+
+			$query = new WP_Query();
+			$posts = $query->query( [
+				'post__in'            => $ids,
+				'posts_per_page'      => count( $ids ),
+				'post_type'           => $post_type,
+				'post_status'         => 'any',
+				'orderby'             => 'post__in',
+				'no_found_rows'       => true,
+				'ignore_sticky_posts' => true,
+			] );
+
+			foreach ( $posts as &$post ) {
+				$post->meta         = apply_filters( 'sce_export_prepare_post_meta', get_post_meta( $post->ID ), $post, $request );
+				$post->post_content = apply_filters( 'sce_export_prepare_post_content', $post->post_content, $post, $request );
+
+				$post->taxonomies = [];
+				foreach ( array_values( get_post_taxonomies( $post ) ) as $taxonomy ) {
+					$fields = 'names';
+					if ( is_taxonomy_hierarchical( $taxonomy ) ) {
+						$fields = 'ids';
+					}
+
+					$current_tax = wp_get_object_terms( $post->ID, $taxonomy, [
+						'fields' => $fields,
+					] );
+
+					if ( ! is_wp_error( $current_tax ) && ! empty( $current_tax ) ) {
+						$post->taxonomies[ $taxonomy ] = $current_tax;
+					} else {
+						unset( $post->taxonomies[ $taxonomy ] );
+					}
+				}
+			}
+
+			return $posts;
+		}
+
+		private function export_layout_bundle_terms( string $taxonomy, array $ids ): array {
+			$ids = wp_parse_id_list( $ids );
+			if ( empty( $ids ) ) {
+				return [];
+			}
+
+			$terms = get_terms( [
+				'include'    => $ids,
+				'taxonomy'   => $taxonomy,
+				'hide_empty' => false,
+				'orderby'    => 'include',
+			] );
+			if ( is_wp_error( $terms ) || empty( $terms ) ) {
+				return [];
+			}
+
+			foreach ( $terms as $term ) {
+				$term->meta = get_term_meta( $term->term_id );
+			}
+
+			return $terms;
+		}
+
+		private function get_layout_bundle_menu_ids( WP_Post $unit_post, array $source_data ): array {
+			$slugs = $this->extract_layout_bundle_navigation_slugs( $unit_post->post_content );
+			if ( empty( $slugs ) || empty( $source_data['post_settings']['mods']['nav_menu_locations'] ) || ! is_array( $source_data['post_settings']['mods']['nav_menu_locations'] ) ) {
+				return [];
+			}
+
+			$menu_ids = [];
+			foreach ( $slugs as $slug ) {
+				if ( ! empty( $source_data['post_settings']['mods']['nav_menu_locations'][ $slug ] ) ) {
+					$menu_ids[] = absint( $source_data['post_settings']['mods']['nav_menu_locations'][ $slug ] );
+				}
+			}
+
+			return array_values( array_unique( array_filter( $menu_ids ) ) );
+		}
+
+		private function get_layout_bundle_menu_objects( array $menu_items ): array {
+			$objects = [];
+			foreach ( $menu_items as $menu_item ) {
+				if ( empty( $menu_item->meta['_menu_item_type'][0] ) || 'post_type' !== $menu_item->meta['_menu_item_type'][0] ) {
+					continue;
+				}
+
+				$object_type = ! empty( $menu_item->meta['_menu_item_object'][0] ) ? sanitize_key( $menu_item->meta['_menu_item_object'][0] ) : '';
+				$object_id   = ! empty( $menu_item->meta['_menu_item_object_id'][0] ) ? absint( $menu_item->meta['_menu_item_object_id'][0] ) : 0;
+				if ( empty( $object_type ) || empty( $object_id ) ) {
+					continue;
+				}
+
+				$link = get_permalink( $object_id );
+				if ( empty( $link ) ) {
+					continue;
+				}
+
+				if ( empty( $objects[ $object_type ] ) ) {
+					$objects[ $object_type ] = [];
+				}
+
+				$objects[ $object_type ][] = [
+					'id'    => $object_id,
+					'link'  => esc_url_raw( $link ),
+					'title' => [
+						'rendered' => get_the_title( $object_id ),
+					],
+				];
+			}
+
+			return $objects;
+		}
+
+		private function get_layout_bundle_media_ids( WP_Post $unit_post, array $source_data ): array {
+			$ids = $this->extract_layout_bundle_media_ids( $unit_post->post_content );
+
+			if ( $this->layout_bundle_unit_uses_logo( $unit_post ) && ! empty( $source_data['post_settings']['mods'] ) && is_array( $source_data['post_settings']['mods'] ) ) {
+				foreach ( [ 'custom_logo', 'anima_transparent_logo', 'pixelgrade_transparent_logo', 'osteria_transparent_logo' ] as $key ) {
+					if ( ! empty( $source_data['post_settings']['mods'][ $key ] ) ) {
+						$ids[] = absint( $source_data['post_settings']['mods'][ $key ] );
+					}
+				}
+			}
+
+			$ids = array_values( array_unique( array_filter( array_map( 'absint', $ids ) ) ) );
+			sort( $ids );
+
+			return $ids;
+		}
+
+		private function extract_layout_bundle_navigation_slugs( string $content ): array {
+			$slugs = [];
+			if ( '' === $content || ! preg_match_all( '/<!--\s+wp:(?:novablocks\/navigation|navigation)\s+({.*?})?\s*(?:\/-->|-->)/', $content, $matches ) ) {
+				return $slugs;
+			}
+
+			foreach ( $matches[1] as $attributes ) {
+				if ( empty( $attributes ) ) {
+					continue;
+				}
+
+				$decoded = json_decode( $attributes, true );
+				if ( ! empty( $decoded['slug'] ) ) {
+					$slugs[] = sanitize_key( $decoded['slug'] );
+				}
+			}
+
+			return array_values( array_unique( array_filter( $slugs ) ) );
+		}
+
+		private function layout_bundle_unit_uses_logo( WP_Post $unit_post ): bool {
+			return false !== strpos( $unit_post->post_content, 'novablocks/logo' ) || false !== strpos( $unit_post->post_content, 'site-logo' );
+		}
+
+		private function extract_layout_bundle_media_ids( string $content ): array {
+			$ids = [];
+			if ( '' === $content ) {
+				return $ids;
+			}
+
+			if ( preg_match_all( '/\bwp-image-(\d+)\b/', $content, $matches ) ) {
+				$ids = array_merge( $ids, array_map( 'absint', $matches[1] ) );
+			}
+
+			if ( preg_match_all( '/<!--\s+wp:([^\s]+)\s+({.*?})\s*(?:\/-->|-->)/', $content, $matches ) ) {
+				foreach ( $matches[2] as $index => $attributes ) {
+					$decoded = json_decode( $attributes, true );
+					if ( is_array( $decoded ) ) {
+						$ids = array_merge( $ids, $this->extract_layout_bundle_media_ids_from_attributes( $decoded, isset( $matches[1][ $index ] ) ? $matches[1][ $index ] : '' ) );
+					}
+				}
+			}
+
+			$ids = array_values( array_unique( array_filter( array_map( 'absint', $ids ) ) ) );
+			sort( $ids );
+
+			return $ids;
+		}
+
+		private function extract_layout_bundle_media_ids_from_attributes( array $attributes, string $block_name = '' ): array {
+			$ids                = [];
+			$specific_keys      = [ 'mediaId', 'mediaID', 'imageId', 'imageID', 'attachmentId', 'attachmentID', 'backgroundImageId', 'backgroundMediaId', 'logoId', 'logoID' ];
+			$generic_id_blocks  = [ 'image', 'cover', 'gallery', 'media-text', 'video', 'audio', 'file' ];
+			$block_name         = sanitize_key( $block_name );
+			$can_use_generic_id = in_array( $block_name, $generic_id_blocks, true ) || false !== strpos( $block_name, 'gallery' ) || false !== strpos( $block_name, 'image' ) || false !== strpos( $block_name, 'media' );
+
+			foreach ( $attributes as $key => $value ) {
+				if ( is_array( $value ) ) {
+					$ids = array_merge( $ids, $this->extract_layout_bundle_media_ids_from_attributes( $value, $block_name ) );
+					continue;
+				}
+
+				$is_media_key = in_array( (string) $key, $specific_keys, true ) || ( $can_use_generic_id && 'id' === (string) $key );
+				if ( is_scalar( $value ) && $is_media_key && is_numeric( $value ) ) {
+					$ids[] = absint( $value );
+				}
+			}
+
+			return $ids;
 		}
 
 		protected function validate_attachment_ids( $attachment_ids ): array {
@@ -1962,6 +2449,11 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 			// If the attachment is not ignored, we will replace it with a random one from the placeholders list.
 			$client_placeholders = $this->get_client_placeholders( $request );
+			// Guard against an empty placeholders list (e.g. content imported before media, or a demo
+			// with no configured placeholders) — array_rand() on an empty array is fatal in PHP 8.
+			if ( empty( $client_placeholders ) ) {
+				return [];
+			}
 			// Get a random $client_placeholders new attachment id
 			// (aka the ID of the attachment as imported in the requesting site).
 			$new_thumb_key = array_rand( $client_placeholders, 1 );
@@ -1983,6 +2475,11 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 			// If the attachment is not ignored, we will replace it with a random one from the placeholders list.
 			$client_placeholders = $this->get_client_placeholders( $request );
+			// Guard against an empty placeholders list (e.g. content imported before media, or a demo
+			// with no configured placeholders) — array_rand() on an empty array is fatal in PHP 8.
+			if ( empty( $client_placeholders ) ) {
+				return $original_id;
+			}
 			// Get a random $client_placeholders new attachment id
 			// (aka the ID of the attachment as imported in the requesting site).
 			$new_thumb_key = array_rand( $client_placeholders, 1 );
