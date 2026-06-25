@@ -754,7 +754,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			] );
 		}
 
-		public function rest_export_data_v2() {
+		public function rest_export_data_v2( ?WP_REST_Request $request = null ) {
 			$options = get_option( 'starter_content_exporter' );
 
 			$data = [
@@ -840,12 +840,121 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 			$data['pre_settings']  = $this->get_pre_settings();
 			$data['post_settings'] = $this->get_post_settings();
+			$data                  = $this->maybe_add_media_source_urls( $data, $request );
 
 			return rest_ensure_response( [
 				'code'    => 'success',
 				'message' => '',
 				'data'    => $data,
 			] );
+		}
+
+		private function maybe_add_media_source_urls( array $data, ?WP_REST_Request $request = null ): array {
+			if ( ! $this->should_export_media_source_urls( $request ) ) {
+				return $data;
+			}
+
+			if ( empty( $data['media'] ) || ! is_array( $data['media'] ) ) {
+				$data['media'] = [];
+			}
+
+			$data['features']             = isset( $data['features'] ) && is_array( $data['features'] ) ? $data['features'] : [];
+			$data['features'][]           = 'media_source_urls';
+			$data['features']             = array_values( array_unique( $data['features'] ) );
+			$data['media']['source_urls'] = $this->get_media_source_urls( $data['media'], $request );
+
+			return $data;
+		}
+
+		private function should_export_media_source_urls( ?WP_REST_Request $request = null ): bool {
+			if ( null === $request || ! method_exists( $request, 'get_param' ) ) {
+				return false;
+			}
+
+			$value = $request->get_param( 'media_urls' );
+
+			return true === $value || 1 === $value || '1' === $value || 'true' === $value;
+		}
+
+		private function get_media_source_urls( array $media, ?WP_REST_Request $request = null ): array {
+			$source_urls = [];
+
+			foreach ( [ 'ignored', 'placeholders' ] as $group ) {
+				if ( empty( $media[ $group ] ) || ! is_array( $media[ $group ] ) ) {
+					continue;
+				}
+
+				foreach ( $media[ $group ] as $attachment_id ) {
+					$attachment_id = absint( $attachment_id );
+					if ( empty( $attachment_id ) ) {
+						continue;
+					}
+
+					$source_url = ( 'placeholders' === $group )
+						? $this->get_placeholder_media_source_url( $attachment_id, $request )
+						: wp_get_attachment_url( $attachment_id );
+
+					if ( empty( $source_url ) ) {
+						continue;
+					}
+
+					$source_urls[ $attachment_id ] = esc_url_raw( $source_url );
+				}
+			}
+
+			return $source_urls;
+		}
+
+		private function get_placeholder_media_source_url( int $attachment_id, ?WP_REST_Request $request = null ): string {
+			$source_url = wp_get_attachment_url( $attachment_id );
+			if ( empty( $source_url ) ) {
+				return '';
+			}
+
+			$placeholder_request          = $this->get_placeholder_media_source_request( $attachment_id, $source_url, $request );
+			$previous_client_placeholders = $this->client_placeholders;
+			$this->client_placeholders    = null;
+
+			try {
+				$rotated_url = $this->get_rotated_placeholder_url( $source_url, $placeholder_request );
+			} finally {
+				$this->client_placeholders = $previous_client_placeholders;
+			}
+
+			return '#' !== $rotated_url ? $rotated_url : $source_url;
+		}
+
+		private function get_placeholder_media_source_request( int $attachment_id, string $source_url, ?WP_REST_Request $request = null ): WP_REST_Request {
+			$placeholder_request = $request;
+
+			if ( class_exists( 'WP_REST_Request' ) ) {
+				try {
+					$placeholder_request = new WP_REST_Request();
+				} catch ( Exception $e ) {
+					$placeholder_request = $request;
+				} catch ( Throwable $e ) {
+					$placeholder_request = $request;
+				}
+			}
+
+			if ( ! $placeholder_request instanceof WP_REST_Request ) {
+				$placeholder_request = new WP_REST_Request();
+			}
+
+			if ( method_exists( $placeholder_request, 'set_param' ) ) {
+				$placeholder_request->set_param( 'placeholders', [
+					$attachment_id => [
+						'id'    => $attachment_id,
+						'sizes' => [
+							'full' => [
+								'url' => $source_url,
+							],
+						],
+					],
+				] );
+			}
+
+			return $placeholder_request;
 		}
 
 		public function rest_export_layout_unit_bundles_v2( WP_REST_Request $request ): WP_REST_Response {
