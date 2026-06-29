@@ -19,6 +19,15 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 	class Starter_Content_Exporter {
 
+		private const ASSISTANT_CATALOG_META_PREFIX = '_sce_pixassist_page_pattern_';
+
+		private const ASSISTANT_CATALOG_POST_TYPES = [
+			'page',
+			'post',
+			'portfolio',
+			'product',
+		];
+
 		private $client_placeholders;
 
 		/**
@@ -104,6 +113,8 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 			// The new standard following endpoints
 			add_action( 'rest_api_init', [ $this, 'add_rest_routes_api_v2' ] );
+			add_action( 'admin_menu', [ $this, 'add_assistant_catalog_admin_menu' ], 30 );
+			add_action( 'admin_post_sce_save_assistant_catalog_record', [ $this, 'handle_assistant_catalog_save' ] );
 
 			// Internal filters.
 			add_filter( 'sce_export_prepare_post_content', [ $this, 'parse_content_for_images' ], 10, 3 );
@@ -501,6 +512,691 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 			return $config;
 		}
+
+		/**
+		 * Register the Assistant Catalog editorial review screen.
+		 *
+		 * @return void
+		 */
+		public function add_assistant_catalog_admin_menu(): void {
+			add_submenu_page(
+				'options-general.php',
+				esc_html__( 'Assistant Catalog', 'socket' ),
+				esc_html__( 'Assistant Catalog', 'socket' ),
+				'manage_options',
+				'starter_content_exporter_assistant_catalog',
+				[ $this, 'render_assistant_catalog_page' ]
+			);
+		}
+
+		/**
+		 * Handle one Assistant Catalog record save.
+		 *
+		 * @return void
+		 */
+		public function handle_assistant_catalog_save(): void {
+			if ( ! current_user_can( 'manage_options' ) ) {
+				wp_die( esc_html__( 'You are not allowed to edit the Assistant Catalog.', 'socket' ) );
+			}
+
+			$post_id = isset( $_POST['post_id'] ) ? absint( wp_unslash( $_POST['post_id'] ) ) : 0;
+			if ( empty( $post_id ) ) {
+				wp_die( esc_html__( 'Missing catalog record.', 'socket' ) );
+			}
+
+			check_admin_referer( 'sce_assistant_catalog_' . $post_id );
+
+			$this->save_assistant_catalog_record( $post_id, [
+				'enabled'     => isset( $_POST['enabled'] ) ? wp_unslash( $_POST['enabled'] ) : '0',
+				'title'       => isset( $_POST['title'] ) ? wp_unslash( $_POST['title'] ) : '',
+				'description' => isset( $_POST['description'] ) ? wp_unslash( $_POST['description'] ) : '',
+				'order'       => isset( $_POST['order'] ) ? wp_unslash( $_POST['order'] ) : '',
+				'group'       => isset( $_POST['group'] ) ? wp_unslash( $_POST['group'] ) : '',
+				'tags'        => isset( $_POST['tags'] ) ? wp_unslash( $_POST['tags'] ) : '',
+				'reason'      => isset( $_POST['reason'] ) ? wp_unslash( $_POST['reason'] ) : '',
+			] );
+
+			$redirect = wp_get_referer();
+			if ( empty( $redirect ) ) {
+				$redirect = admin_url( 'options-general.php?page=starter_content_exporter_assistant_catalog' );
+			}
+
+			wp_safe_redirect( add_query_arg( 'sce_catalog_saved', $post_id, $redirect ) );
+			exit;
+		}
+
+		/**
+		 * Persist curation metadata for one source record.
+		 *
+		 * @param int   $post_id Source post ID.
+		 * @param array $input   Raw curation input.
+		 *
+		 * @return void
+		 */
+		public function save_assistant_catalog_record( int $post_id, array $input ): void {
+			$post_id = absint( $post_id );
+			if ( empty( $post_id ) ) {
+				return;
+			}
+
+			update_post_meta( $post_id, self::ASSISTANT_CATALOG_META_PREFIX . 'enabled', $this->normalize_assistant_catalog_enabled( $input['enabled'] ?? '0' ) ? '1' : '0' );
+			$this->update_assistant_catalog_text_meta( $post_id, 'title', $input['title'] ?? '' );
+			$this->update_assistant_catalog_text_meta( $post_id, 'description', $input['description'] ?? '' );
+			$this->update_assistant_catalog_text_meta( $post_id, 'group', sanitize_key( $input['group'] ?? '' ) );
+			$this->update_assistant_catalog_text_meta( $post_id, 'reason', $input['reason'] ?? '' );
+
+			$order = isset( $input['order'] ) && '' !== (string) $input['order'] ? absint( $input['order'] ) : 0;
+			if ( 0 < $order ) {
+				update_post_meta( $post_id, self::ASSISTANT_CATALOG_META_PREFIX . 'order', $order );
+			} else {
+				delete_post_meta( $post_id, self::ASSISTANT_CATALOG_META_PREFIX . 'order' );
+			}
+
+			$tags = $this->normalize_assistant_catalog_tags( $input['tags'] ?? [] );
+			if ( ! empty( $tags ) ) {
+				update_post_meta( $post_id, self::ASSISTANT_CATALOG_META_PREFIX . 'tags', $tags );
+			} else {
+				delete_post_meta( $post_id, self::ASSISTANT_CATALOG_META_PREFIX . 'tags' );
+			}
+		}
+
+		/**
+		 * Render the Assistant Catalog review screen.
+		 *
+		 * @return void
+		 */
+		public function render_assistant_catalog_page(): void {
+			if ( ! current_user_can( 'manage_options' ) ) {
+				return;
+			}
+
+			$records       = $this->get_assistant_catalog_records();
+			$current_type  = isset( $_GET['catalog_type'] ) ? sanitize_key( wp_unslash( $_GET['catalog_type'] ) ) : '';
+			$current_state = isset( $_GET['catalog_state'] ) ? sanitize_key( wp_unslash( $_GET['catalog_state'] ) ) : 'all';
+			$filtered      = $this->filter_assistant_catalog_records( $records, $current_type, $current_state );
+			$counts        = $this->get_assistant_catalog_counts( $records );
+			$type_options  = $this->get_assistant_catalog_type_options( $records );
+			$saved_id      = isset( $_GET['sce_catalog_saved'] ) ? absint( wp_unslash( $_GET['sce_catalog_saved'] ) ) : 0;
+			?>
+			<div class="wrap sce-catalog">
+				<style>
+					.sce-catalog__intro{max-width:760px;margin:8px 0 20px;color:#50575e;font-size:14px}
+					.sce-catalog__filters{align-items:center;display:flex;flex-wrap:wrap;gap:8px 14px;margin:0 0 18px}
+					.sce-catalog__filters a{background:#fff;border:1px solid #c3c4c7;border-radius:4px;color:#1d2327;display:inline-flex;padding:6px 10px;text-decoration:none}
+					.sce-catalog__filters a.is-active{background:#1d2327;border-color:#1d2327;color:#fff}
+					.sce-catalog__grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));max-width:1280px}
+					.sce-catalog__card{background:#fff;border:1px solid #dcdcde;border-radius:6px;box-shadow:0 1px 2px rgba(0,0,0,.04);padding:0}
+					.sce-catalog__card-header{border-bottom:1px solid #f0f0f1;padding:14px 16px}
+					.sce-catalog__title{align-items:flex-start;display:flex;gap:10px;justify-content:space-between;margin:0}
+					.sce-catalog__title strong{font-size:15px;line-height:1.35}
+					.sce-catalog__meta{color:#646970;display:flex;flex-wrap:wrap;font-size:12px;gap:7px 10px;margin-top:7px}
+					.sce-catalog__badge{background:#f6f7f7;border:1px solid #dcdcde;border-radius:999px;color:#3c434a;display:inline-flex;font-size:11px;font-weight:600;line-height:1;padding:4px 7px}
+					.sce-catalog__badge--visible{background:#edfaef;border-color:#b8e6c2;color:#0a7a28}
+					.sce-catalog__badge--hidden{background:#fcf0f1;border-color:#facfd2;color:#8a2424}
+					.sce-catalog__badge--warning{background:#fcf9e8;border-color:#f0d98c;color:#755100}
+					.sce-catalog__body{display:grid;gap:12px;padding:14px 16px}
+					.sce-catalog__field{display:grid;gap:5px}
+					.sce-catalog__field label{font-weight:600}
+					.sce-catalog__row{display:grid;gap:10px;grid-template-columns:minmax(0,1fr) 92px}
+					.sce-catalog__warnings{background:#fff8e5;border-left:4px solid #dba617;margin:0;padding:9px 10px}
+					.sce-catalog__warnings ul{margin:6px 0 0 18px}
+					.sce-catalog__actions{align-items:center;border-top:1px solid #f0f0f1;display:flex;justify-content:space-between;padding:12px 16px}
+					@media (max-width:782px){.sce-catalog__grid{grid-template-columns:1fr}.sce-catalog__row{grid-template-columns:1fr}}
+				</style>
+				<h1><?php esc_html_e( 'Assistant Catalog', 'socket' ); ?></h1>
+				<p class="sce-catalog__intro"><?php esc_html_e( 'Review the optional records selected for export and decide which ones Pixelgrade Assistant may serve as Page Patterns. Quality hints are warnings only; editors can still publish or hide any record.', 'socket' ); ?></p>
+				<?php if ( $saved_id ) : ?>
+					<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Catalog record saved.', 'socket' ); ?></p></div>
+				<?php endif; ?>
+				<div class="sce-catalog__filters">
+					<?php foreach ( $this->get_assistant_catalog_state_filters() as $state => $label ) : ?>
+						<a class="<?php echo $current_state === $state ? 'is-active' : ''; ?>" href="<?php echo esc_url( add_query_arg( [ 'catalog_state' => $state, 'catalog_type' => $current_type ], admin_url( 'options-general.php?page=starter_content_exporter_assistant_catalog' ) ) ); ?>">
+							<?php echo esc_html( $label ); ?> (<?php echo esc_html( $counts[ $state ] ?? 0 ); ?>)
+						</a>
+					<?php endforeach; ?>
+					<form method="get">
+						<input type="hidden" name="page" value="starter_content_exporter_assistant_catalog" />
+						<input type="hidden" name="catalog_state" value="<?php echo esc_attr( $current_state ); ?>" />
+						<select name="catalog_type">
+							<option value=""><?php esc_html_e( 'All content types', 'socket' ); ?></option>
+							<?php foreach ( $type_options as $type => $label ) : ?>
+								<option value="<?php echo esc_attr( $type ); ?>" <?php selected( $current_type, $type ); ?>><?php echo esc_html( $label ); ?></option>
+							<?php endforeach; ?>
+						</select>
+						<?php submit_button( esc_html__( 'Filter', 'socket' ), 'secondary', '', false ); ?>
+					</form>
+				</div>
+				<?php if ( empty( $records ) ) : ?>
+					<div class="notice notice-info"><p><?php esc_html_e( 'No optional exported records are selected yet. Choose pages, posts, projects, or products on the Starter Content Exporter screen first.', 'socket' ); ?></p></div>
+				<?php elseif ( empty( $filtered ) ) : ?>
+					<div class="notice notice-info"><p><?php esc_html_e( 'No records match the current filters.', 'socket' ); ?></p></div>
+				<?php else : ?>
+					<div class="sce-catalog__grid">
+						<?php foreach ( $filtered as $record ) : ?>
+							<?php $this->render_assistant_catalog_card( $record ); ?>
+						<?php endforeach; ?>
+					</div>
+				<?php endif; ?>
+			</div>
+			<?php
+		}
+
+		/**
+		 * Render one Assistant Catalog review card.
+		 *
+		 * @param array $record Normalized record descriptor.
+		 *
+		 * @return void
+		 */
+		private function render_assistant_catalog_card( array $record ): void {
+			$post    = $record['post'];
+			$pattern = $record['pattern'];
+			$quality = $pattern['quality'];
+			$state   = ! empty( $pattern['enabled'] ) ? 'visible' : 'hidden';
+			?>
+			<form class="sce-catalog__card" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<input type="hidden" name="action" value="sce_save_assistant_catalog_record" />
+				<input type="hidden" name="post_id" value="<?php echo esc_attr( $post->ID ); ?>" />
+				<?php wp_nonce_field( 'sce_assistant_catalog_' . $post->ID ); ?>
+				<div class="sce-catalog__card-header">
+					<p class="sce-catalog__title">
+						<strong><?php echo esc_html( get_the_title( $post ) ); ?></strong>
+						<span class="sce-catalog__badge sce-catalog__badge--<?php echo esc_attr( $state ); ?>"><?php echo esc_html( ucfirst( $state ) ); ?></span>
+					</p>
+					<div class="sce-catalog__meta">
+						<span><?php echo esc_html( $record['typeLabel'] ); ?></span>
+						<span><?php echo esc_html( $post->post_name ); ?></span>
+						<span><?php echo esc_html( sprintf( _n( '%d media item', '%d media items', (int) $quality['mediaCount'], 'socket' ), (int) $quality['mediaCount'] ) ); ?></span>
+						<span class="sce-catalog__badge sce-catalog__badge--<?php echo empty( $quality['warnings'] ) ? 'visible' : 'warning'; ?>"><?php echo empty( $quality['warnings'] ) ? esc_html__( 'Quality OK', 'socket' ) : esc_html__( 'Warnings', 'socket' ); ?></span>
+					</div>
+				</div>
+				<div class="sce-catalog__body">
+					<label>
+						<input type="checkbox" name="enabled" value="1" <?php checked( ! empty( $pattern['enabled'] ) ); ?> />
+						<?php esc_html_e( 'Expose as Page Pattern', 'socket' ); ?>
+					</label>
+					<div class="sce-catalog__row">
+						<div class="sce-catalog__field">
+							<label for="sce-title-<?php echo esc_attr( $post->ID ); ?>"><?php esc_html_e( 'Catalog title override', 'socket' ); ?></label>
+							<input id="sce-title-<?php echo esc_attr( $post->ID ); ?>" class="widefat" type="text" name="title" value="<?php echo esc_attr( $pattern['title'] ); ?>" placeholder="<?php echo esc_attr( get_the_title( $post ) ); ?>" />
+						</div>
+						<div class="sce-catalog__field">
+							<label for="sce-order-<?php echo esc_attr( $post->ID ); ?>"><?php esc_html_e( 'Order', 'socket' ); ?></label>
+							<input id="sce-order-<?php echo esc_attr( $post->ID ); ?>" class="widefat" type="number" min="0" step="1" name="order" value="<?php echo esc_attr( $pattern['order'] ); ?>" />
+						</div>
+					</div>
+					<div class="sce-catalog__field">
+						<label for="sce-description-<?php echo esc_attr( $post->ID ); ?>"><?php esc_html_e( 'Catalog description override', 'socket' ); ?></label>
+						<textarea id="sce-description-<?php echo esc_attr( $post->ID ); ?>" class="widefat" name="description" rows="2"><?php echo esc_textarea( $pattern['description'] ); ?></textarea>
+					</div>
+					<div class="sce-catalog__row">
+						<div class="sce-catalog__field">
+							<label for="sce-group-<?php echo esc_attr( $post->ID ); ?>"><?php esc_html_e( 'Group', 'socket' ); ?></label>
+							<input id="sce-group-<?php echo esc_attr( $post->ID ); ?>" class="widefat" type="text" name="group" value="<?php echo esc_attr( $pattern['group'] ); ?>" placeholder="portfolio" />
+						</div>
+						<div class="sce-catalog__field">
+							<label for="sce-tags-<?php echo esc_attr( $post->ID ); ?>"><?php esc_html_e( 'Tags', 'socket' ); ?></label>
+							<input id="sce-tags-<?php echo esc_attr( $post->ID ); ?>" class="widefat" type="text" name="tags" value="<?php echo esc_attr( implode( ', ', $pattern['tags'] ) ); ?>" placeholder="portfolio, case-study" />
+						</div>
+					</div>
+					<div class="sce-catalog__field">
+						<label for="sce-reason-<?php echo esc_attr( $post->ID ); ?>"><?php esc_html_e( 'Editorial notes or warning reason', 'socket' ); ?></label>
+						<textarea id="sce-reason-<?php echo esc_attr( $post->ID ); ?>" class="widefat" name="reason" rows="2"><?php echo esc_textarea( $pattern['reason'] ); ?></textarea>
+					</div>
+					<?php if ( ! empty( $quality['warnings'] ) ) : ?>
+						<div class="sce-catalog__warnings">
+							<strong><?php esc_html_e( 'Quality hints', 'socket' ); ?></strong>
+							<ul>
+								<?php foreach ( $quality['warnings'] as $warning ) : ?>
+									<li><?php echo esc_html( $warning['message'] ); ?></li>
+								<?php endforeach; ?>
+							</ul>
+						</div>
+					<?php endif; ?>
+				</div>
+				<div class="sce-catalog__actions">
+					<span>
+						<?php if ( get_permalink( $post ) ) : ?>
+							<a href="<?php echo esc_url( get_permalink( $post ) ); ?>" target="_blank" rel="noreferrer noopener"><?php esc_html_e( 'Preview', 'socket' ); ?></a>
+						<?php endif; ?>
+						<?php if ( get_edit_post_link( $post->ID ) ) : ?>
+							&nbsp;·&nbsp;<a href="<?php echo esc_url( get_edit_post_link( $post->ID ) ); ?>"><?php esc_html_e( 'Edit source', 'socket' ); ?></a>
+						<?php endif; ?>
+					</span>
+					<?php submit_button( esc_html__( 'Save', 'socket' ), 'primary small', '', false ); ?>
+				</div>
+			</form>
+			<?php
+		}
+
+		/**
+		 * Update a single text-like Assistant Catalog meta key.
+		 *
+		 * @param int    $post_id Source post ID.
+		 * @param string $key     Meta suffix.
+		 * @param mixed  $value   Raw value.
+		 *
+		 * @return void
+		 */
+		private function update_assistant_catalog_text_meta( int $post_id, string $key, $value ): void {
+			$value = sanitize_text_field( $value );
+			if ( '' === $value ) {
+				delete_post_meta( $post_id, self::ASSISTANT_CATALOG_META_PREFIX . $key );
+				return;
+			}
+
+			update_post_meta( $post_id, self::ASSISTANT_CATALOG_META_PREFIX . $key, $value );
+		}
+
+		/**
+		 * Normalize loose checkbox/boolean values.
+		 *
+		 * @param mixed $value Raw value.
+		 *
+		 * @return bool
+		 */
+		private function normalize_assistant_catalog_enabled( $value ): bool {
+			if ( is_bool( $value ) ) {
+				return $value;
+			}
+
+			return in_array( strtolower( (string) $value ), [ '1', 'true', 'on', 'yes' ], true );
+		}
+
+		/**
+		 * Normalize a loose tag list to sanitized labels.
+		 *
+		 * @param mixed $value Raw tags.
+		 *
+		 * @return array
+		 */
+		private function normalize_assistant_catalog_tags( $value ): array {
+			if ( is_string( $value ) ) {
+				$value = explode( ',', $value );
+			}
+
+			$tags = [];
+			foreach ( (array) $value as $tag ) {
+				$tag = sanitize_text_field( $tag );
+				if ( '' === $tag ) {
+					continue;
+				}
+				$tags[] = $tag;
+			}
+
+			return array_values( array_unique( $tags ) );
+		}
+
+		/**
+		 * Return selected optional records that can become Assistant Page Patterns.
+		 *
+		 * @return array
+		 */
+		private function get_assistant_catalog_records(): array {
+			$options = get_option( 'starter_content_exporter', [] );
+			if ( empty( $options ) || ! is_array( $options ) ) {
+				return [];
+			}
+
+			$post_types = apply_filters( 'sce_assistant_catalog_post_types', self::ASSISTANT_CATALOG_POST_TYPES );
+			$post_types = array_values( array_unique( array_filter( array_map( 'sanitize_key', (array) $post_types ) ) ) );
+			$records    = [];
+
+			foreach ( $post_types as $post_type ) {
+				$option_key = 'post_type_' . $post_type;
+				if ( empty( $options[ $option_key ] ) ) {
+					continue;
+				}
+
+				$ids = wp_parse_id_list( $options[ $option_key ] );
+				if ( empty( $ids ) ) {
+					continue;
+				}
+
+				$posts = get_posts( [
+					'post__in'       => $ids,
+					'post_type'      => $post_type,
+					'posts_per_page' => count( $ids ),
+					'orderby'        => 'post__in',
+					'post_status'    => 'any',
+				] );
+
+				foreach ( $posts as $post ) {
+					$pattern   = $this->get_assistant_catalog_pattern_payload( $post );
+					$records[] = [
+						'post'      => $post,
+						'pattern'   => $pattern,
+						'type'      => $post_type,
+						'typeLabel' => $this->get_assistant_catalog_post_type_label( $post_type ),
+					];
+				}
+			}
+
+			usort( $records, function ( $a, $b ) {
+				$order_a = ! empty( $a['pattern']['order'] ) ? (int) $a['pattern']['order'] : 9999;
+				$order_b = ! empty( $b['pattern']['order'] ) ? (int) $b['pattern']['order'] : 9999;
+				if ( $order_a !== $order_b ) {
+					return $order_a < $order_b ? -1 : 1;
+				}
+
+				return strcasecmp( get_the_title( $a['post'] ), get_the_title( $b['post'] ) );
+			} );
+
+			return $records;
+		}
+
+		/**
+		 * Filter records for the review screen.
+		 *
+		 * @param array  $records Current records.
+		 * @param string $type    Selected post type.
+		 * @param string $state   Selected curation state.
+		 *
+		 * @return array
+		 */
+		private function filter_assistant_catalog_records( array $records, string $type, string $state ): array {
+			return array_values( array_filter( $records, function ( $record ) use ( $type, $state ) {
+				if ( '' !== $type && $record['type'] !== $type ) {
+					return false;
+				}
+
+				if ( 'visible' === $state ) {
+					return ! empty( $record['pattern']['enabled'] );
+				}
+
+				if ( 'hidden' === $state ) {
+					return empty( $record['pattern']['enabled'] );
+				}
+
+				if ( 'warned' === $state ) {
+					return ! empty( $record['pattern']['quality']['warnings'] );
+				}
+
+				return true;
+			} ) );
+		}
+
+		/**
+		 * Count records by curation state.
+		 *
+		 * @param array $records Catalog records.
+		 *
+		 * @return array
+		 */
+		private function get_assistant_catalog_counts( array $records ): array {
+			$counts = [
+				'all'     => count( $records ),
+				'visible' => 0,
+				'hidden'  => 0,
+				'warned'  => 0,
+			];
+
+			foreach ( $records as $record ) {
+				if ( ! empty( $record['pattern']['enabled'] ) ) {
+					$counts['visible']++;
+				} else {
+					$counts['hidden']++;
+				}
+
+				if ( ! empty( $record['pattern']['quality']['warnings'] ) ) {
+					$counts['warned']++;
+				}
+			}
+
+			return $counts;
+		}
+
+		/**
+		 * Return labels for the state filter bar.
+		 *
+		 * @return array
+		 */
+		private function get_assistant_catalog_state_filters(): array {
+			return [
+				'all'     => esc_html__( 'All', 'socket' ),
+				'visible' => esc_html__( 'Visible', 'socket' ),
+				'hidden'  => esc_html__( 'Hidden', 'socket' ),
+				'warned'  => esc_html__( 'Warned', 'socket' ),
+			];
+		}
+
+		/**
+		 * Return post-type options present in the catalog.
+		 *
+		 * @param array $records Catalog records.
+		 *
+		 * @return array
+		 */
+		private function get_assistant_catalog_type_options( array $records ): array {
+			$options = [];
+			foreach ( $records as $record ) {
+				$options[ $record['type'] ] = $record['typeLabel'];
+			}
+
+			ksort( $options );
+
+			return $options;
+		}
+
+		/**
+		 * Return a readable content type label.
+		 *
+		 * @param string $post_type Post type.
+		 *
+		 * @return string
+		 */
+		private function get_assistant_catalog_post_type_label( string $post_type ): string {
+			$object = get_post_type_object( $post_type );
+			if ( ! empty( $object->labels->singular_name ) ) {
+				return $object->labels->singular_name;
+			}
+
+			return ucwords( str_replace( [ '-', '_' ], ' ', $post_type ) );
+		}
+
+		/**
+		 * Build the stable Assistant payload exported on each post record.
+		 *
+		 * @param WP_Post $post Source post.
+		 *
+		 * @return array
+		 */
+		private function get_assistant_catalog_pattern_payload( WP_Post $post ): array {
+			$post_id      = absint( $post->ID );
+			$enabled_meta = get_post_meta( $post_id, self::ASSISTANT_CATALOG_META_PREFIX . 'enabled', true );
+			$tags         = get_post_meta( $post_id, self::ASSISTANT_CATALOG_META_PREFIX . 'tags', true );
+
+			return [
+				'enabled'     => '' === $enabled_meta ? true : $this->normalize_assistant_catalog_enabled( $enabled_meta ),
+				'order'       => absint( get_post_meta( $post_id, self::ASSISTANT_CATALOG_META_PREFIX . 'order', true ) ),
+				'group'       => sanitize_key( get_post_meta( $post_id, self::ASSISTANT_CATALOG_META_PREFIX . 'group', true ) ),
+				'tags'        => $this->normalize_assistant_catalog_tags( $tags ),
+				'title'       => sanitize_text_field( get_post_meta( $post_id, self::ASSISTANT_CATALOG_META_PREFIX . 'title', true ) ),
+				'description' => sanitize_text_field( get_post_meta( $post_id, self::ASSISTANT_CATALOG_META_PREFIX . 'description', true ) ),
+				'reason'      => sanitize_text_field( get_post_meta( $post_id, self::ASSISTANT_CATALOG_META_PREFIX . 'reason', true ) ),
+				'quality'     => $this->get_assistant_catalog_quality( $post ),
+			];
+		}
+
+		/**
+		 * Compute editorial quality hints for a source post.
+		 *
+		 * @param WP_Post $post Source post.
+		 *
+		 * @return array
+		 */
+		private function get_assistant_catalog_quality( WP_Post $post ): array {
+			$content     = isset( $post->post_content ) ? (string) $post->post_content : '';
+			$text        = $this->get_assistant_catalog_content_text( $content );
+			$word_count  = '' === $text ? 0 : str_word_count( $text );
+			$block_count = $this->count_assistant_catalog_blocks( $content );
+			$media_count = $this->count_assistant_catalog_media( $post );
+			$title_only  = $this->is_assistant_catalog_title_only( (string) $post->post_title, $text );
+			$warnings    = [];
+
+			if ( $title_only ) {
+				$warnings[] = [
+					'code'    => 'title_only',
+					'message' => esc_html__( 'Only the title appears to carry meaningful content.', 'socket' ),
+				];
+			}
+
+			if ( 0 === $word_count ) {
+				$warnings[] = [
+					'code'    => 'empty_content',
+					'message' => esc_html__( 'The content is empty or near-empty.', 'socket' ),
+				];
+			} elseif ( 12 > $word_count ) {
+				$warnings[] = [
+					'code'    => 'near_empty_content',
+					'message' => esc_html__( 'The content has very little reusable structure.', 'socket' ),
+				];
+			}
+
+			if ( 0 === $media_count && 1 >= $block_count ) {
+				$warnings[] = [
+					'code'    => 'no_meaningful_blocks_media',
+					'message' => esc_html__( 'No meaningful blocks or media were detected.', 'socket' ),
+				];
+			}
+
+			return [
+				'status'     => empty( $warnings ) ? 'ok' : 'warning',
+				'warnings'   => $warnings,
+				'wordCount'  => $word_count,
+				'blockCount' => $block_count,
+				'mediaCount' => $media_count,
+			];
+		}
+
+		/**
+		 * Return readable text from block/classic content.
+		 *
+		 * @param string $content Post content.
+		 *
+		 * @return string
+		 */
+		private function get_assistant_catalog_content_text( string $content ): string {
+			$content = preg_replace( '/<!--.*?-->/s', ' ', $content );
+			$content = wp_strip_all_tags( $content );
+			$content = preg_replace( '/\s+/', ' ', $content );
+
+			return trim( (string) $content );
+		}
+
+		/**
+		 * Decide whether content is effectively empty or just repeats the post title.
+		 *
+		 * @param string $title   Source post title.
+		 * @param string $content Plain post content text.
+		 *
+		 * @return bool
+		 */
+		private function is_assistant_catalog_title_only( string $title, string $content ): bool {
+			$title = $this->normalize_assistant_catalog_comparison_text( $title );
+			if ( '' === $title ) {
+				return false;
+			}
+
+			$content = $this->normalize_assistant_catalog_comparison_text( $content );
+
+			return '' === $content || $content === $title;
+		}
+
+		/**
+		 * Normalize text for quality-hint comparisons.
+		 *
+		 * @param string $text Raw text.
+		 *
+		 * @return string
+		 */
+		private function normalize_assistant_catalog_comparison_text( string $text ): string {
+			$text = html_entity_decode( wp_strip_all_tags( $text ), ENT_QUOTES, 'UTF-8' );
+			if ( function_exists( 'remove_accents' ) ) {
+				$text = remove_accents( $text );
+			}
+
+			$text       = strtolower( $text );
+			$normalized = preg_replace( '/[^\p{L}\p{N}]+/u', ' ', $text );
+			if ( null === $normalized ) {
+				$normalized = preg_replace( '/[^a-z0-9]+/', ' ', $text );
+			}
+
+			return trim( preg_replace( '/\s+/', ' ', (string) $normalized ) );
+		}
+
+		/**
+		 * Count source blocks in a content string.
+		 *
+		 * @param string $content Post content.
+		 *
+		 * @return int
+		 */
+		private function count_assistant_catalog_blocks( string $content ): int {
+			if ( '' === $content ) {
+				return 0;
+			}
+
+			if ( function_exists( 'has_blocks' ) && function_exists( 'parse_blocks' ) && has_blocks( $content ) ) {
+				return $this->count_assistant_catalog_parsed_blocks( parse_blocks( $content ) );
+			}
+
+			return substr_count( $content, '<!-- wp:' );
+		}
+
+		/**
+		 * Count parsed block nodes recursively.
+		 *
+		 * @param array $blocks Parsed blocks.
+		 *
+		 * @return int
+		 */
+		private function count_assistant_catalog_parsed_blocks( array $blocks ): int {
+			$count = 0;
+			foreach ( $blocks as $block ) {
+				if ( ! empty( $block['blockName'] ) ) {
+					$count++;
+				}
+				if ( ! empty( $block['innerBlocks'] ) && is_array( $block['innerBlocks'] ) ) {
+					$count += $this->count_assistant_catalog_parsed_blocks( $block['innerBlocks'] );
+				}
+			}
+
+			return $count;
+		}
+
+		/**
+		 * Count source media references in post meta and content.
+		 *
+		 * @param WP_Post $post Source post.
+		 *
+		 * @return int
+		 */
+		private function count_assistant_catalog_media( WP_Post $post ): int {
+			$ids  = [];
+			$meta = get_post_meta( $post->ID );
+
+			foreach ( array_merge( [ '_thumbnail_id' ], $this->gallery_meta_keys ) as $key ) {
+				if ( empty( $meta[ $key ] ) ) {
+					continue;
+				}
+
+				foreach ( (array) $meta[ $key ] as $value ) {
+					$ids = array_merge( $ids, wp_parse_id_list( $value ) );
+				}
+			}
+
+			$content = isset( $post->post_content ) ? (string) $post->post_content : '';
+			if ( preg_match_all( '/"id"\s*:\s*(\d+)/', $content, $matches ) ) {
+				$ids = array_merge( $ids, array_map( 'absint', $matches[1] ) );
+			}
+			if ( preg_match_all( '/wp-image-(\d+)/', $content, $matches ) ) {
+				$ids = array_merge( $ids, array_map( 'absint', $matches[1] ) );
+			}
+
+			return count( array_values( array_unique( array_filter( $ids ) ) ) );
+		}
+
 
 		/**
 		 * Get the list of site options to be available in selects.
@@ -1489,6 +2185,10 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 						unset( $post->taxonomies[ $taxonomy ] );
 					}
 				}
+
+				$post->pixassist = [
+					'pagePattern' => $this->get_assistant_catalog_pattern_payload( $post ),
+				];
 			}
 
 			return rest_ensure_response( [

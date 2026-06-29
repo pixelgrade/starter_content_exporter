@@ -35,6 +35,29 @@ The data JSON has two entries `post_types` and `taxonomies`; each of hold a list
 	- `placeholders` should be a list of attachments ids which should map the selected placeholders with the imported attachments on the client.
 	- `ignored_images` should be a list of attachments ids which should map the selected ignored_images with the ones imported on the client.
 
+### Pixelgrade Assistant Catalog metadata
+
+The Settings -> Assistant Catalog screen lets demo editors curate selected optional `page`, `post`, `portfolio`, and `product` records for Pixelgrade Assistant Page Patterns.
+The curation is stored on the source post as `_sce_pixassist_page_pattern_*` post meta and exported on each `/wp-json/sce/v2/posts` record under:
+
+```json
+{
+  "pixassist": {
+    "pagePattern": {
+      "enabled": true,
+      "order": 30,
+      "group": "portfolio",
+      "tags": ["portfolio", "case-study"],
+      "title": "Selected Work",
+      "description": "A portfolio index page with project grid and intro copy.",
+      "reason": ""
+    }
+  }
+}
+```
+
+Missing metadata is intentionally backward compatible: consumers should treat the record as visible and keep the source title, excerpt, and default ordering. `quality` is also exported inside `pagePattern` as warning-only editorial hints for title-only, empty/near-empty, and low-structure records.
+
 * GET – `wp-json/sce/v1/terms`
 	- Returns all the data for a given `taxonomy` and a list of term ids separated by comma in `include`.
 	- It doesn't support image replacement yet
