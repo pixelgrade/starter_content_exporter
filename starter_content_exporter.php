@@ -1334,7 +1334,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		}
 
 		/**
-		 * Relay an observed functional request without delaying its response.
+		 * Relay an observed functional request with a short, bounded timeout.
 		 *
 		 * @param array  $params  Incoming endpoint parameters.
 		 * @param string $service Endpoint-owned observed service name.
@@ -1349,8 +1349,8 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 			$endpoint = apply_filters( 'sce_service_registry_endpoint', 'https://cloud.pixelgrade.com/wp-json/pixcloud/v1/front/stats' );
 			$response = wp_remote_post( $endpoint, [
-				'timeout'   => 1,
-				'blocking'  => false,
+				'timeout'   => 2,
+				'blocking'  => true,
 				'sslverify' => true,
 				'body'      => $payload,
 			] );

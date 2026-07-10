@@ -63,7 +63,8 @@ class SCE_Registry_Test_Exporter extends Starter_Content_Exporter {
 $exporter = new SCE_Registry_Test_Exporter();
 sce_registry_assert_same( true, $exporter->relay( $params, 'layout_units_requested' ), 'Valid starter-source context must be relayed without affecting content delivery.' );
 sce_registry_assert_same( 1, count( $GLOBALS['sce_registry_requests'] ), 'Starter sources must make one registry relay request.' );
-sce_registry_assert_same( false, $GLOBALS['sce_registry_requests'][0]['args']['blocking'], 'Starter-source registry relays must not block content delivery.' );
+sce_registry_assert_same( true, $GLOBALS['sce_registry_requests'][0]['args']['blocking'], 'Starter-source registry relays must complete their bounded first-party delivery.' );
+sce_registry_assert_same( 2, $GLOBALS['sce_registry_requests'][0]['args']['timeout'], 'Starter-source registry relays must use a short timeout.' );
 sce_registry_assert_same( 'layout_units_requested', $GLOBALS['sce_registry_requests'][0]['args']['body']['service'], 'Starter sources must relay the observed endpoint service.' );
 
 echo "Starter source service registry relay contract OK\n";
