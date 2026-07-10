@@ -1242,6 +1242,123 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		}
 
 		/**
+		 * Build the strict allowlist forwarded to the first-party site registry.
+		 *
+		 * @param array  $params  Incoming endpoint parameters.
+		 * @param string $service Endpoint-owned observed service name.
+		 *
+		 * @return array
+		 */
+		public static function prepare_service_registry_payload( $params, $service ) {
+			if ( ! is_array( $params ) || empty( $params['site_url'] ) ) {
+				return [];
+			}
+
+			$site_url  = esc_url_raw( trim( (string) $params['site_url'] ) );
+			$url_parts = function_exists( 'wp_parse_url' ) ? wp_parse_url( $site_url ) : parse_url( $site_url );
+			if ( empty( $url_parts['host'] ) || empty( $url_parts['scheme'] ) || ! in_array( strtolower( $url_parts['scheme'] ), [ 'http', 'https' ], true ) ) {
+				return [];
+			}
+
+			$service = strtolower( trim( (string) $service ) );
+			$service = trim( preg_replace( '/[^a-z0-9_-]+/', '_', $service ), '_-' );
+			if ( empty( $service ) ) {
+				return [];
+			}
+
+			$payload = [
+				'site_url' => $site_url,
+				'service'  => substr( $service, 0, 64 ),
+			];
+
+			if ( ! empty( $params['theme_data'] ) && is_array( $params['theme_data'] ) ) {
+				$theme_data = [];
+				foreach ( [ 'slug', 'name', 'version' ] as $key ) {
+					if ( isset( $params['theme_data'][ $key ] ) ) {
+						$theme_data[ $key ] = substr( trim( (string) $params['theme_data'][ $key ] ), 0, 100 );
+					}
+				}
+				if ( ! empty( $params['theme_data']['wupdates'] ) && is_array( $params['theme_data']['wupdates'] ) ) {
+					$wupdates = [];
+					foreach ( [ 'id', 'type', 'slug', 'name' ] as $key ) {
+						if ( isset( $params['theme_data']['wupdates'][ $key ] ) ) {
+							$wupdates[ $key ] = substr( trim( (string) $params['theme_data']['wupdates'][ $key ] ), 0, 100 );
+						}
+					}
+					if ( ! empty( $wupdates ) ) {
+						$theme_data['wupdates'] = $wupdates;
+					}
+				}
+				if ( ! empty( $theme_data ) ) {
+					$payload['theme_data'] = $theme_data;
+				}
+			}
+
+			if ( ! empty( $params['site_data'] ) && is_array( $params['site_data'] ) ) {
+				$site_data = [
+					'url'    => $site_url,
+					'is_ssl' => ! empty( $params['site_data']['is_ssl'] ) || 'https' === strtolower( $url_parts['scheme'] ),
+				];
+				if ( ! empty( $params['site_data']['environment_type'] ) && in_array( $params['site_data']['environment_type'], [ 'local', 'development', 'staging', 'production' ], true ) ) {
+					$site_data['environment_type'] = $params['site_data']['environment_type'];
+				}
+				if ( ! empty( $params['site_data']['wp'] ) && is_array( $params['site_data']['wp'] ) ) {
+					$wp_data = [];
+					foreach ( [ 'version', 'language' ] as $key ) {
+						if ( isset( $params['site_data']['wp'][ $key ] ) ) {
+							$wp_data[ $key ] = substr( trim( (string) $params['site_data']['wp'][ $key ] ), 0, 30 );
+						}
+					}
+					if ( isset( $params['site_data']['wp']['rtl'] ) ) {
+						$wp_data['rtl'] = (bool) $params['site_data']['wp']['rtl'];
+					}
+					if ( ! empty( $wp_data ) ) {
+						$site_data['wp'] = $wp_data;
+					}
+				}
+				foreach ( [ 'customify', 'style_manager', 'pixelgrade_assistant' ] as $client ) {
+					if ( ! empty( $params['site_data'][ $client ]['version'] ) ) {
+						$site_data[ $client ] = [
+							'version' => substr( trim( (string) $params['site_data'][ $client ]['version'] ), 0, 30 ),
+						];
+					}
+				}
+				$payload['site_data'] = $site_data;
+			}
+
+			if ( ! empty( $params['customer_data']['id'] ) ) {
+				$payload['customer_data'] = [ 'id' => abs( (int) $params['customer_data']['id'] ) ];
+			}
+
+			return $payload;
+		}
+
+		/**
+		 * Relay an observed functional request without delaying its response.
+		 *
+		 * @param array  $params  Incoming endpoint parameters.
+		 * @param string $service Endpoint-owned observed service name.
+		 *
+		 * @return bool
+		 */
+		protected function maybe_record_service_request( $params, $service ) {
+			$payload = self::prepare_service_registry_payload( $params, $service );
+			if ( empty( $payload ) ) {
+				return false;
+			}
+
+			$endpoint = apply_filters( 'sce_service_registry_endpoint', 'https://cloud.pixelgrade.com/wp-json/pixcloud/v1/front/stats' );
+			$response = wp_remote_post( $endpoint, [
+				'timeout'   => 1,
+				'blocking'  => false,
+				'sslverify' => true,
+				'body'      => $payload,
+			] );
+
+			return ! is_wp_error( $response );
+		}
+
+		/**
 		 * Get the list of theme_mods options to be available in selects.
 		 *
 		 * We will not include all theme_mods options, but only those that we believe are relevant for export.
@@ -1357,7 +1474,10 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		 *
 		 * @return WP_Error|WP_HTTP_Response|WP_REST_Response
 		 */
-		public function rest_export_mi_data_v2() {
+		public function rest_export_mi_data_v2( ?WP_REST_Request $request = null ) {
+			if ( null !== $request ) {
+				$this->maybe_record_service_request( $request->get_params(), 'starter_required_manifest_requested' );
+			}
 			$options = get_option( 'starter_content_exporter' );
 
 			$data = [
@@ -1451,6 +1571,9 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		}
 
 		public function rest_export_data_v2( ?WP_REST_Request $request = null ) {
+			if ( null !== $request ) {
+				$this->maybe_record_service_request( $request->get_params(), 'starter_manifest_requested' );
+			}
 			$options = get_option( 'starter_content_exporter' );
 
 			$data = [
@@ -1654,6 +1777,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		}
 
 		public function rest_export_layout_unit_bundles_v2( WP_REST_Request $request ): WP_REST_Response {
+			$this->maybe_record_service_request( $request->get_params(), 'layout_unit_bundles_requested' );
 			$units = $this->get_layout_bundle_request_units( $request );
 			if ( empty( $units ) ) {
 				return rest_ensure_response( [
@@ -1691,7 +1815,10 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			] );
 		}
 
-		public function rest_export_layout_units_v2(): WP_REST_Response {
+		public function rest_export_layout_units_v2( ?WP_REST_Request $request = null ): WP_REST_Response {
+			if ( null !== $request ) {
+				$this->maybe_record_service_request( $request->get_params(), 'layout_units_requested' );
+			}
 			$data_response = $this->rest_export_data_v2();
 			$data_payload  = ( is_object( $data_response ) && method_exists( $data_response, 'get_data' ) ) ? $data_response->get_data() : [];
 			$source_data   = isset( $data_payload['data'] ) && is_array( $data_payload['data'] ) ? $data_payload['data'] : [];
@@ -2148,6 +2275,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		 */
 		public function rest_export_posts_v2( WP_REST_Request $request ): WP_REST_Response {
 			$params = $request->get_params();
+			$this->maybe_record_service_request( $params, 'starter_posts_requested' );
 
 			$query_args = array(
 				'post__in'            => empty( $params['include'] ) ? [] : wp_parse_id_list( $params['include'] ),
