@@ -3,7 +3,7 @@
  * Plugin Name:       Starter Content Exporter
  * Plugin URI:        https://pixelgrade.com/
  * Description:       A plugin which exposes exportable data through the REST API.
- * Version:           1.5.6
+ * Version:           1.5.7
  * Author:            Pixelgrade, Vlad Olaru
  * Author URI:        https://pixelgrade.com/
  * License:           GPL-2.0+
@@ -20,6 +20,10 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 	class Starter_Content_Exporter {
 
 		private const ASSISTANT_CATALOG_META_PREFIX = '_sce_pixassist_page_pattern_';
+
+		private const STYLE_MANAGER_IGNORED_OPTION_IDS = [
+			'sm_perf_autoload_migrated_v1',
+		];
 
 		private const ASSISTANT_CATALOG_POST_TYPES = [
 			'page',
@@ -1199,6 +1203,114 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 
 		/**
+		 * Collect persisted Style Manager option IDs from its final Customizer schema.
+		 *
+		 * @param array $config Style Manager Customizer configuration.
+		 *
+		 * @return array
+		 */
+		private function collect_style_manager_option_ids( array $config ): array {
+			$option_ids = [];
+
+			foreach ( $config as $item ) {
+				if ( ! is_array( $item ) ) {
+					continue;
+				}
+
+				if (
+					isset( $item['setting_type'], $item['setting_id'] )
+					&& 'option' === $item['setting_type']
+					&& is_string( $item['setting_id'] )
+					&& ( ! isset( $item['type'] ) || ! in_array( $item['type'], [ 'html', 'button' ], true ) )
+					&& 0 === strpos( $item['setting_id'], 'sm_' )
+				) {
+					$option_ids[] = $item['setting_id'];
+				}
+
+				$option_ids = array_merge( $option_ids, $this->collect_style_manager_option_ids( $item ) );
+			}
+
+			return $option_ids;
+		}
+
+		/**
+		 * Get Style Manager option IDs that form part of the starter-site contract.
+		 *
+		 * The final Style Manager schema is authoritative. Older Style Manager versions
+		 * without the schema API fall back to their stored, autoloaded sm_* options.
+		 *
+		 * @return array
+		 */
+		private function get_style_manager_exportable_option_ids(): array {
+			$option_ids = [];
+			$config     = null;
+
+			if ( function_exists( '\\Pixelgrade\\StyleManager\\get_customizer_config' ) ) {
+				try {
+					$config = \Pixelgrade\StyleManager\get_customizer_config();
+				} catch ( \Throwable $exception ) {
+					$config = null;
+				}
+			}
+
+			if ( is_array( $config ) ) {
+				// A valid empty schema is authoritative: there are no controls to export.
+				$option_ids = $this->collect_style_manager_option_ids( $config );
+			} elseif ( function_exists( 'wp_load_alloptions' ) ) {
+				foreach ( wp_load_alloptions() as $option_name => $option_value ) {
+					if ( 0 === strpos( $option_name, 'sm_' ) ) {
+						$option_ids[] = $option_name;
+					}
+				}
+			}
+
+			if ( function_exists( 'apply_filters' ) ) {
+				$option_ids = apply_filters( 'sce_exportable_style_manager_option_ids', $option_ids );
+				$ignored_ids = apply_filters( 'sce_ignored_style_manager_option_ids', self::STYLE_MANAGER_IGNORED_OPTION_IDS );
+			} else {
+				$ignored_ids = self::STYLE_MANAGER_IGNORED_OPTION_IDS;
+			}
+
+			$option_ids = array_filter(
+				(array) $option_ids,
+				static function ( $option_id ) {
+					return is_string( $option_id ) && 0 === strpos( $option_id, 'sm_' );
+				}
+			);
+			$option_ids = array_diff( $option_ids, (array) $ignored_ids );
+			$option_ids = array_values( array_unique( $option_ids ) );
+			sort( $option_ids );
+
+			return $option_ids;
+		}
+
+		/**
+		 * Get persisted Style Manager settings for automatic pre-import export.
+		 *
+		 * @param array $post_option_ids Options explicitly assigned to post-import.
+		 *
+		 * @return array
+		 */
+		private function get_automatic_style_manager_options( array $post_option_ids = [] ): array {
+			$settings = [];
+
+			foreach ( $this->get_style_manager_exportable_option_ids() as $option_id ) {
+				if ( in_array( $option_id, $post_option_ids, true ) ) {
+					continue;
+				}
+
+				$value = get_option( $option_id, null );
+
+				// Export only saved starter intent; do not freeze schema defaults into data.
+				if ( null !== $value ) {
+					$settings[ $option_id ] = $value;
+				}
+			}
+
+			return $settings;
+		}
+
+		/**
 		 * Get the list of site options to be available in selects.
 		 *
 		 * We will not include all site options, but only those that we believe are relevant for export.
@@ -1231,11 +1343,21 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				}
 			}
 
-			// Include all Style Manager options.
+			$ignored_style_manager_options = self::STYLE_MANAGER_IGNORED_OPTION_IDS;
+			if ( function_exists( 'apply_filters' ) ) {
+				$ignored_style_manager_options = apply_filters( 'sce_ignored_style_manager_option_ids', $ignored_style_manager_options );
+			}
+
+			// Include stored Style Manager options for backwards-compatible manual selection.
 			foreach ( $options as $option_name => $option_value ) {
-				if ( 0 === strpos( $option_name, 'sm_' ) ) {
+				if ( 0 === strpos( $option_name, 'sm_' ) && ! in_array( $option_name, $ignored_style_manager_options, true ) ) {
 					$select_options[ $option_name ] = $option_name;
 				}
+			}
+
+			// Include schema-backed options even when they currently use their default value.
+			foreach ( $this->get_style_manager_exportable_option_ids() as $option_name ) {
+				$select_options[ $option_name ] = $option_name;
 			}
 
 			return $select_options;
@@ -2981,6 +3103,18 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 					$settings['options'][ $key ] = $option_value;
 				}
 			}
+
+			$post_option_ids = [];
+			if ( ! empty( $options['exported_post_options'] ) && is_array( $options['exported_post_options'] ) ) {
+				$post_option_ids = array_map( 'trim', $options['exported_post_options'] );
+			}
+
+			// Persisted Style Manager controls are starter-site state, even when their
+			// runtime behavior is dormant until an entitlement becomes available.
+			$settings['options'] = array_merge(
+				$this->get_automatic_style_manager_options( $post_option_ids ),
+				$settings['options']
+			);
 
 			if ( ! empty( $options['exported_pre_theme_mods'] ) ) {
 				$theme_mods_keys = $options['exported_pre_theme_mods'];
