@@ -2615,31 +2615,79 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			if ( has_blocks( $content ) ) {
 				$content = $this->handle_images_in_content_with_blocks( $content, $request );
 			} else {
-				$upload_dir = wp_get_upload_dir();
-
-				$explode  = explode( '/wp-content/uploads/', $upload_dir['baseurl'] );
-				$base_url = '/wp-content/uploads/';
-				if ( ! empty( $explode[1] ) ) {
-					$base_url = trailingslashit( '/wp-content/uploads/' . $explode[1] );
-				}
-				$attachments_regex = '~(?<=src=\").+((' . $base_url . ')|(files\.wordpress\.com)).+(?=[\"\ ])~U';
-
-				preg_match_all( $attachments_regex, $content, $result );
-				if ( ! empty( $result[0] ) && is_array( $result[0] ) ) {
-					foreach ( $result[0] as $i => $match ) {
-						$original_image_url = $match;
-						$new_url            = $this->get_rotated_placeholder_url( $original_image_url, $request );
-						$content            = str_replace( $original_image_url, $new_url, $content );
-					}
-				}
-
 				// Search for shortcodes with attachments ids like gallery.
 				if ( has_shortcode( $content, 'gallery' ) ) {
 					$content = $this->replace_gallery_shortcodes_ids( $content, $request );
 				}
 			}
 
+			// A block document can still contain an inline image inside a Paragraph/HTML block. The block-aware
+			// pass only owns dedicated media blocks, so finish with the same URL-based mapping used for classic
+			// content. Already-rewritten block images no longer point at this source upload path and are skipped.
+			$content = $this->replace_content_image_urls( $content, $request );
+
 			return $content;
+		}
+
+		/**
+		 * Replace source upload URLs in img tags, including inline images nested in non-image blocks.
+		 *
+		 * The URL resolves the authoritative source attachment. This deliberately does not trust an existing
+		 * `wp-image-*` class because migrated content can retain the ID of an attachment that no longer exists.
+		 * When the URL maps successfully, update both the src and that class from the same replacement record.
+		 *
+		 * @param string          $content  Post content.
+		 * @param WP_REST_Request $request  Import request carrying placeholder and ignored-media maps.
+		 * @param string          $base_url Optional source uploads path, primarily for contract tests.
+		 *
+		 * @return string
+		 */
+		protected function replace_content_image_urls( string $content, WP_REST_Request $request, string $base_url = '' ): string {
+			if ( empty( $base_url ) ) {
+				$upload_dir = wp_get_upload_dir();
+				$explode    = explode( '/wp-content/uploads/', $upload_dir['baseurl'] );
+				$base_url   = '/wp-content/uploads/';
+				if ( ! empty( $explode[1] ) ) {
+					$base_url = trailingslashit( '/wp-content/uploads/' . $explode[1] );
+				}
+			}
+
+			return preg_replace_callback(
+				'/<img\b[^>]*>/i',
+				function ( array $match ) use ( $request, $base_url ): string {
+					$tag = $match[0];
+					if ( ! preg_match( '/\bsrc\s*=\s*(["\'])(.*?)\1/i', $tag, $src_match ) ) {
+						return $tag;
+					}
+
+					$original_image_url = html_entity_decode( $src_match[2], ENT_QUOTES, 'UTF-8' );
+					if ( false === strpos( $original_image_url, $base_url ) && false === strpos( $original_image_url, 'files.wordpress.com' ) ) {
+						return $tag;
+					}
+
+					$source_id = attachment_url_to_postid( $original_image_url );
+					if ( empty( $source_id ) ) {
+						// A dedicated block may already carry the requesting site's local URL. Never rotate an
+						// upload-path lookalike that does not resolve to an attachment on this source site.
+						return $tag;
+					}
+
+					$replacement = $this->get_rotated_placeholder( $source_id, $request );
+					if ( ! empty( $replacement['sizes']['full']['url'] ) ) {
+						$tag = str_replace( $src_match[2], $replacement['sizes']['full']['url'], $tag );
+						if ( ! empty( $replacement['id'] ) ) {
+							$tag = preg_replace( '/\bwp-image-\d+\b/', 'wp-image-' . absint( $replacement['id'] ), $tag );
+						}
+
+						return $tag;
+					}
+
+					$new_url = $this->get_rotated_placeholder_url( $original_image_url, $request );
+
+					return str_replace( $src_match[2], $new_url, $tag );
+				},
+				$content
+			);
 		}
 
 		protected function handle_images_in_content_with_blocks( string $post_content, WP_REST_Request $request ): string {

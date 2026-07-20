@@ -49,6 +49,7 @@ function absint( $value ) {
 $GLOBALS['sce_attachment_ids'] = array(
 	'https://source.test/original.jpg' => 501,
 	'https://source.test/ignored.jpg'  => 99,
+	'https://source.test/wp-content/uploads/anchor.png' => 257,
 );
 
 function attachment_url_to_postid( $url ) {
@@ -82,6 +83,10 @@ class SCE_Placeholder_Contract_Exporter extends Starter_Content_Exporter {
 
 	public function placeholder_url( string $original_url, WP_REST_Request $request ): string {
 		return $this->get_rotated_placeholder_url( $original_url, $request );
+	}
+
+	public function inline_image_urls( string $content, WP_REST_Request $request ): string {
+		return $this->replace_content_image_urls( $content, $request, '/wp-content/uploads/' );
 	}
 }
 
@@ -139,5 +144,37 @@ $exporter            = new SCE_Placeholder_Contract_Exporter();
 sce_placeholder_assert_same( $placeholder_image, $exporter->placeholder_details( 501, $placeholder_request ), 'Non-ignored media must rotate through the configured placeholder pool.' );
 sce_placeholder_assert_same( 6175, $exporter->placeholder_id( 501, $placeholder_request ), 'Non-ignored media must use the imported placeholder attachment ID.' );
 sce_placeholder_assert_same( 'https://local.test/placeholder.jpg', $exporter->placeholder_url( 'https://source.test/original.jpg', $placeholder_request ), 'Non-ignored media must use the imported placeholder full URL.' );
+
+$inline_ignored = array(
+	'id'    => 2864,
+	'sizes' => array(
+		'full' => array(
+			'url'    => 'https://local.test/wp-content/uploads/anchor.png',
+			'width'  => 12,
+			'height' => 13,
+		),
+	),
+);
+$mixed_block_request = new WP_REST_Request(
+	array(
+		'placeholders'   => array( 175 => $placeholder_image ),
+		'ignored_images' => array( 257 => $inline_ignored ),
+	)
+);
+$mixed_block_content = '<!-- wp:paragraph --><p><img src="https://source.test/wp-content/uploads/anchor.png" alt="anchor" class="aligncenter wp-image-1199 size-full"></p><!-- /wp:paragraph -->';
+$mixed_block_expected = '<!-- wp:paragraph --><p><img src="https://local.test/wp-content/uploads/anchor.png" alt="anchor" class="aligncenter wp-image-2864 size-full"></p><!-- /wp:paragraph -->';
+
+sce_placeholder_assert_same(
+	$mixed_block_expected,
+	$exporter->inline_image_urls( $mixed_block_content, $mixed_block_request ),
+	'Inline images nested in non-image blocks must keep ignored media and repair stale wp-image classes.'
+);
+
+$already_local_content = '<!-- wp:image --><figure><img src="https://local.test/wp-content/uploads/already-remapped.jpg" class="wp-image-2864"></figure><!-- /wp:image -->';
+sce_placeholder_assert_same(
+	$already_local_content,
+	$exporter->inline_image_urls( $already_local_content, $mixed_block_request ),
+	'An already-remapped requester URL that only resembles the source upload path must not be rotated again.'
+);
 
 echo "Starter placeholder media contract OK\n";
