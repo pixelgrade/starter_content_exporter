@@ -1234,6 +1234,155 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 		}
 
 		/**
+		 * Collect persisted Style Manager option definitions from its final schema.
+		 *
+		 * @param array $config Style Manager Customizer configuration.
+		 *
+		 * @return array Option definitions keyed by setting ID.
+		 */
+		private function collect_style_manager_option_definitions( array $config ): array {
+			$definitions = [];
+
+			foreach ( $config as $item ) {
+				if ( ! is_array( $item ) ) {
+					continue;
+				}
+
+				if (
+					isset( $item['setting_type'], $item['setting_id'] )
+					&& 'option' === $item['setting_type']
+					&& is_string( $item['setting_id'] )
+					&& ( ! isset( $item['type'] ) || ! in_array( $item['type'], [ 'html', 'button' ], true ) )
+					&& 0 === strpos( $item['setting_id'], 'sm_' )
+				) {
+					$definitions[ $item['setting_id'] ] = $item;
+				}
+
+				$definitions = array_merge( $definitions, $this->collect_style_manager_option_definitions( $item ) );
+			}
+
+			return $definitions;
+		}
+
+		/**
+		 * Get schema-backed Style Manager option definitions when the API is healthy.
+		 *
+		 * An unavailable or failing API returns an empty map so legacy fallback values
+		 * remain untouched; without a schema there is no reliable validity contract.
+		 *
+		 * @return array Option definitions keyed by setting ID.
+		 */
+		private function get_style_manager_option_definitions(): array {
+			if ( ! function_exists( '\\Pixelgrade\\StyleManager\\get_customizer_config' ) ) {
+				return [];
+			}
+
+			try {
+				$config = \Pixelgrade\StyleManager\get_customizer_config();
+			} catch ( \Throwable $exception ) {
+				return [];
+			}
+
+			if ( ! is_array( $config ) ) {
+				return [];
+			}
+
+			return $this->collect_style_manager_option_definitions( $config );
+		}
+
+		/**
+		 * Whether a saved Style Manager value violates its typed schema contract.
+		 *
+		 * @param mixed $value      Saved option value.
+		 * @param array $definition Style Manager option definition.
+		 *
+		 * @return bool
+		 */
+		private function is_invalid_style_manager_option_value( $value, array $definition ): bool {
+			$type = isset( $definition['type'] ) ? (string) $definition['type'] : '';
+
+			if ( 'range' === $type ) {
+				if ( '' === $value || ! is_numeric( $value ) ) {
+					return true;
+				}
+
+				$input_attrs = isset( $definition['input_attrs'] ) && is_array( $definition['input_attrs'] )
+					? $definition['input_attrs']
+					: [];
+				$number = (float) $value;
+
+				if ( isset( $input_attrs['min'] ) && is_numeric( $input_attrs['min'] ) && $number < (float) $input_attrs['min'] ) {
+					return true;
+				}
+
+				if ( isset( $input_attrs['max'] ) && is_numeric( $input_attrs['max'] ) && $number > (float) $input_attrs['max'] ) {
+					return true;
+				}
+			}
+
+			$choice_types = [
+				'radio',
+				'radio_html',
+				'radio_image',
+				'select',
+				'select2',
+				'select_color',
+				'sm_radio',
+				'sm_switch',
+				'preset',
+			];
+			if (
+				in_array( $type, $choice_types, true )
+				&& isset( $definition['choices'] )
+				&& is_array( $definition['choices'] )
+				&& ! is_scalar( $value )
+			) {
+				return true;
+			}
+
+			if (
+				in_array( $type, $choice_types, true )
+				&& isset( $definition['choices'] )
+				&& is_array( $definition['choices'] )
+				&& ! array_key_exists( $value, $definition['choices'] )
+			) {
+				return true;
+			}
+
+			return false;
+		}
+
+		/**
+		 * Remove schema-invalid Style Manager values from an exported settings phase.
+		 *
+		 * Omitting invalid stored artifacts lets the destination use the control's own
+		 * default. Valid empty checkbox values remain exportable as intentional false.
+		 *
+		 * @param array $options Exported option values.
+		 *
+		 * @return array
+		 */
+		private function sanitize_exported_style_manager_options( array $options ): array {
+			$definitions = $this->get_style_manager_option_definitions();
+
+			foreach ( $options as $option_id => $value ) {
+				if (
+					! is_string( $option_id )
+					|| 0 !== strpos( $option_id, 'sm_' )
+					|| ! isset( $definitions[ $option_id ] )
+				) {
+					continue;
+				}
+
+				if ( $this->is_invalid_style_manager_option_value( $value, $definitions[ $option_id ] ) ) {
+					unset( $options[ $option_id ] );
+				}
+			}
+
+			return $options;
+		}
+
+		/**
 		 * Get Style Manager option IDs that form part of the starter-site contract.
 		 *
 		 * The final Style Manager schema is authoritative. Older Style Manager versions
@@ -3013,6 +3162,8 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				}
 			}
 
+			$settings['options'] = $this->sanitize_exported_style_manager_options( $settings['options'] );
+
 			return $settings;
 		}
 
@@ -3067,6 +3218,8 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 					}
 				}
 			}
+
+			$settings['options'] = $this->sanitize_exported_style_manager_options( $settings['options'] );
 
 			return $settings;
 		}
@@ -3153,6 +3306,8 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				}
 			}
 
+			$settings['options'] = $this->sanitize_exported_style_manager_options( $settings['options'] );
+
 			return $settings;
 		}
 
@@ -3233,6 +3388,8 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				unset( $featured_content['tag-id'] );
 				$settings['options']['featured-content'] = $featured_content;
 			}
+
+			$settings['options'] = $this->sanitize_exported_style_manager_options( $settings['options'] );
 
 			return $settings;
 		}

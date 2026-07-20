@@ -19,6 +19,12 @@ namespace {
 						'setting_type' => 'option',
 						'setting_id'   => 'sm_collection_hover_effect',
 					),
+					'valid_range' => array(
+						'type'         => 'range',
+						'setting_type' => 'option',
+						'setting_id'   => 'sm_spacing_level',
+						'input_attrs'  => array( 'min' => 0, 'max' => 2 ),
+					),
 				),
 			),
 			'motion' => array(
@@ -28,10 +34,30 @@ namespace {
 						'setting_type' => 'option',
 						'setting_id'   => 'sm_page_transitions_enable',
 					),
+					'empty_checkbox' => array(
+						'type'         => 'checkbox',
+						'setting_type' => 'option',
+						'setting_id'   => 'sm_intro_animations_enable',
+					),
+					'invalid_empty_range' => array(
+						'type'         => 'range',
+						'setting_type' => 'option',
+						'setting_id'   => 'sm_site_color_variation',
+						'default'      => 1,
+						'input_attrs'  => array( 'min' => 1, 'max' => 12 ),
+					),
+					'invalid_empty_choice' => array(
+						'type'         => 'radio_html',
+						'setting_type' => 'option',
+						'setting_id'   => 'sm_elements_color_contrast',
+						'default'      => 'normal',
+						'choices'      => array( 'normal' => 'Normal', 'maximum' => 'Maximum' ),
+					),
 					'intro_style' => array(
 						'type'         => 'select',
 						'setting_type' => 'option',
 						'setting_id'   => 'sm_intro_animations_style',
+						'choices'      => array( 'fade' => 'Fade', 'kinetic' => 'Kinetic' ),
 					),
 					'unsaved_default' => array(
 						'type'         => 'select',
@@ -78,10 +104,17 @@ namespace {
 	function get_option( $key, $default = false ) {
 		$options = array(
 			'starter_content_exporter'     => array(
-				'exported_post_options' => array( 'sm_intro_animations_style' ),
+				'exported_pre_options'     => array( 'sm_site_color_variation' ),
+				'exported_post_options'    => array( 'sm_intro_animations_style', 'sm_elements_color_contrast' ),
+				'mi_exported_pre_options'  => array( 'sm_site_color_variation' ),
+				'mi_exported_post_options' => array( 'sm_elements_color_contrast' ),
 			),
 			'sm_collection_hover_effect'   => 'pile',
+			'sm_spacing_level'              => '1.5',
 			'sm_page_transitions_enable'   => '1',
+			'sm_intro_animations_enable'   => '',
+			'sm_site_color_variation'      => '',
+			'sm_elements_color_contrast'   => '',
 			'sm_intro_animations_style'    => 'kinetic',
 			'sm_motion_intro'               => 'presentation-only',
 			'sm_motion_action'              => 'presentation-only',
@@ -104,6 +137,7 @@ namespace {
 
 	$expected_pre_options = array(
 		'sm_collection_hover_effect' => 'pile',
+		'sm_spacing_level'            => '1.5',
 		'sm_page_transitions_enable' => '1',
 	);
 
@@ -112,6 +146,16 @@ namespace {
 			fwrite( STDERR, "Expected {$key} to be exported automatically before content import.\n" );
 			exit( 1 );
 		}
+	}
+
+	if ( ! array_key_exists( 'sm_intro_animations_enable', $pre_settings['options'] ) || '' !== $pre_settings['options']['sm_intro_animations_enable'] ) {
+		fwrite( STDERR, "A saved empty checkbox must remain exportable as intentional false state.\n" );
+		exit( 1 );
+	}
+
+	if ( array_key_exists( 'sm_site_color_variation', $pre_settings['options'] ) ) {
+		fwrite( STDERR, "A schema-invalid empty range value must not override the destination default.\n" );
+		exit( 1 );
 	}
 
 	$forbidden_pre_options = array(
@@ -137,6 +181,22 @@ namespace {
 	if ( 'kinetic' !== ( $post_settings['options']['sm_intro_animations_style'] ?? null ) ) {
 		fwrite( STDERR, "An explicitly post-import Style Manager option must remain post-import.\n" );
 		exit( 1 );
+	}
+
+	if ( array_key_exists( 'sm_elements_color_contrast', $post_settings['options'] ) ) {
+		fwrite( STDERR, "A schema-invalid empty choice must be removed even when explicitly selected.\n" );
+		exit( 1 );
+	}
+
+	foreach ( array( 'get_mi_pre_settings', 'get_mi_post_settings' ) as $method_name ) {
+		$get_mi_settings = new \ReflectionMethod( $exporter, $method_name );
+		$get_mi_settings->setAccessible( true );
+		$mi_settings = $get_mi_settings->invoke( $exporter );
+
+		if ( ! empty( $mi_settings['options'] ) ) {
+			fwrite( STDERR, "Schema-invalid Style Manager values must be removed from must-import settings.\n" );
+			exit( 1 );
+		}
 	}
 
 	$get_options_select_list = new \ReflectionMethod( $exporter, 'get_options_select_list' );

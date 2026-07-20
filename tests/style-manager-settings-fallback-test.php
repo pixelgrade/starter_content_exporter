@@ -12,6 +12,7 @@ function apply_filters( $hook, $value ) {
 function wp_load_alloptions() {
 	return array(
 		'sm_collection_hover_effect'   => 'pile',
+		'sm_site_color_variation'      => '',
 		'sm_perf_autoload_migrated_v1' => '1',
 		'unrelated_option'              => 'ignore-me',
 	);
@@ -20,6 +21,7 @@ function get_option( $key, $default = false ) {
 	$options = array(
 		'starter_content_exporter'     => array(),
 		'sm_collection_hover_effect'   => 'pile',
+		'sm_site_color_variation'      => '',
 		'sm_perf_autoload_migrated_v1' => '1',
 	);
 
@@ -38,6 +40,11 @@ $settings = $get_pre_settings->invoke( $exporter );
 
 if ( 'pile' !== ( $settings['options']['sm_collection_hover_effect'] ?? null ) ) {
 	fwrite( STDERR, "Stored Style Manager options must export without the schema API.\n" );
+	exit( 1 );
+}
+
+if ( ! array_key_exists( 'sm_site_color_variation', $settings['options'] ) || '' !== $settings['options']['sm_site_color_variation'] ) {
+	fwrite( STDERR, "Without a schema API, invalid-looking values must remain untouched.\n" );
 	exit( 1 );
 }
 

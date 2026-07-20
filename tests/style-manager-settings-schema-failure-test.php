@@ -19,6 +19,7 @@ namespace {
 	function wp_load_alloptions() {
 		return array(
 			'sm_collection_hover_effect'   => 'pile',
+			'sm_site_color_variation'      => '',
 			'sm_perf_autoload_migrated_v1' => '1',
 		);
 	}
@@ -26,6 +27,7 @@ namespace {
 		$options = array(
 			'starter_content_exporter'   => array(),
 			'sm_collection_hover_effect' => 'pile',
+			'sm_site_color_variation'    => '',
 		);
 
 		return $options[ $key ] ?? $default;
@@ -49,6 +51,11 @@ namespace {
 
 	if ( 'pile' !== ( $settings['options']['sm_collection_hover_effect'] ?? null ) ) {
 		fwrite( STDERR, "A failing Style Manager schema API must fall back to stored options.\n" );
+		exit( 1 );
+	}
+
+	if ( ! array_key_exists( 'sm_site_color_variation', $settings['options'] ) || '' !== $settings['options']['sm_site_color_variation'] ) {
+		fwrite( STDERR, "A failing schema API must not guess whether stored values are invalid.\n" );
 		exit( 1 );
 	}
 
