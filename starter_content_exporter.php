@@ -3,7 +3,7 @@
  * Plugin Name:       Starter Content Exporter
  * Plugin URI:        https://pixelgrade.com/
  * Description:       A plugin which exposes exportable data through the REST API.
- * Version:           1.5.5
+ * Version:           1.5.6
  * Author:            Pixelgrade, Vlad Olaru
  * Author URI:        https://pixelgrade.com/
  * License:           GPL-2.0+
@@ -3033,6 +3033,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				'options' => [
 					'page_on_front'  => get_option( 'page_on_front' ),
 					'page_for_posts' => get_option( 'page_for_posts' ),
+					'site_logo'      => get_option( 'site_logo' ),
 				],
 				'mods'    => [],
 			];
@@ -3445,6 +3446,9 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			}
 
 			// If the attachment is not ignored, we will replace it with a random one from the placeholders list.
+			if ( empty( $client_placeholders ) ) {
+				return '#';
+			}
 
 			// Get a random $client_placeholders key.
 			$new_thumb_key = array_rand( $client_placeholders, 1 );
