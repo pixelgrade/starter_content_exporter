@@ -2726,7 +2726,12 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 					// Set the replacement attachment ID in the block attributes.
 					// This is the attachment ID as imported by the requesting website.
-					$block['attrs']['id'] = $replacement_media_details['id'];
+					// absint, not the raw value: replacement details arrive from a form-encoded request
+					// body, so every id is a numeric STRING by the time it gets here. `core/image`
+					// declares `id` as a number, so writing the string produces markup that parses
+					// fine but is no longer what the block's save() emits — the document stops being a
+					// serialization fixed point and the next editor save silently rewrites it.
+					$block['attrs']['id'] = absint( $replacement_media_details['id'] );
 					$has_updated_content  = true;
 
 					if ( empty( $block['innerContent'] ) ) {
@@ -2750,7 +2755,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 						}
 
 						// Replace the wp-image-%id% class that might be present.
-						$inner_content = str_replace( 'wp-image-' . $original_wp_image_id, 'wp-image-' . $replacement_media_details['id'], $inner_content );
+						$inner_content = str_replace( 'wp-image-' . $original_wp_image_id, 'wp-image-' . absint( $replacement_media_details['id'] ), $inner_content );
 
 						// Replace the URL of the link if the block is configured to link to the media.
 						if ( ! empty( $block['attrs']['linkDestination'] ) && 'media' === $block['attrs']['linkDestination'] ) {
@@ -2792,7 +2797,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 						// Set the replacement attachment ID in the block attributes.
 						// This is the attachment ID as imported by the requesting website.
-						$block['attrs']['images'][ $key ]['id'] = $replacement_media_details['id'];
+						$block['attrs']['images'][ $key ]['id'] = absint( $replacement_media_details['id'] );
 						// Handle the url attribute.
 						if ( isset( $block['attrs']['images'][ $key ]['url'] )
 						     && ! empty( $replacement_media_details['sizes']['full']['url'] ) ) {
@@ -2834,7 +2839,7 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 
 						// Set the replacement attachment ID in the block attributes.
 						// This is the attachment ID as imported by the requesting website.
-						$block['attrs']['media']['id'] = $replacement_media_details['id'];
+						$block['attrs']['media']['id'] = absint( $replacement_media_details['id'] );
 						// Handle the url attribute.
 						if ( isset( $block['attrs']['media']['url'] )
 						     && ! empty( $replacement_media_details['sizes']['full']['url'] ) ) {
