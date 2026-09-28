@@ -25,6 +25,13 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 			'sm_perf_autoload_migrated_v1',
 		];
 
+		/**
+		 * Style Manager (2.7+) records here the Content Inset value saved through its own UI.
+		 * `sm_content_inset` renders as an explicit inset only when this marker holds the same
+		 * value, and the marker lives outside the `sm_*` namespace, so it is exported explicitly.
+		 */
+		private const STYLE_MANAGER_CONTENT_INSET_MARKER_OPTION_ID = 'style_manager_content_inset_explicit';
+
 		private const ASSISTANT_CATALOG_POST_TYPES = [
 			'page',
 			'post',
@@ -1453,6 +1460,15 @@ if ( ! class_exists( 'Starter_Content_Exporter' ) ) {
 				// Export only saved starter intent; do not freeze schema defaults into data.
 				if ( null !== $value ) {
 					$settings[ $option_id ] = $value;
+				}
+			}
+
+			// Keep an inset saved through Style Manager explicit on the imported site.
+			$marker_id = self::STYLE_MANAGER_CONTENT_INSET_MARKER_OPTION_ID;
+			if ( ! in_array( $marker_id, $post_option_ids, true ) ) {
+				$marker = get_option( $marker_id, null );
+				if ( null !== $marker ) {
+					$settings[ $marker_id ] = $marker;
 				}
 			}
 
